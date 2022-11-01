@@ -1,3 +1,6 @@
+.vs
+docs/
+
 # Object files
 *.o
 *.obj
