@@ -534,6 +534,17 @@ typedef struct TagEncParamBase {
 
 } SEncParamBase, *PEncParamBase;
 
+/*
+* @brief Object Range in the picture
+*/
+typedef struct TagObjectRange {
+  int16_t iXStart;
+  int16_t iXEnd;
+  int16_t iYStart;
+  int16_t iYEnd;
+  int     iQpOffset;
+} SObjectRange;
+
 /**
 * @brief SVC Encoding Parameters extention
 */
@@ -589,7 +600,11 @@ typedef struct TagEncParamExt {
   bool    bEnableFrameCroppingFlag;    ///< enable frame cropping flag: TRUE always in application
   bool    bEnableSceneChangeDetect;
 
-  bool    bIsLosslessLink;            ///<  LTR advanced setting
+  bool    bIsLosslessLink;             ///<  LTR advanced setting
+
+  /* Object Range from Unity and Qp offset setting */
+  SObjectRange* pObjectRange;          ///<  Object Range Array
+  int           iObjectRangeNum;       ///<  Object Range number
 } SEncParamExt;
 
 /**

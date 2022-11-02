@@ -222,7 +222,7 @@ int CWelsH264SVCEncoder::InitializeExt (const SEncParamExt* argv) {
   }
 
   SWelsSvcCodingParam sConfig;
-  // Convert SEncParamExt into WelsSVCParamConfig here..
+  // NOTE: Convert SEncParamExt into WelsSVCParamConfig here..
   if (sConfig.ParamTranscode (*argv)) {
     WelsLog (&m_pWelsTrace->m_sLogCtx, WELS_LOG_ERROR,
              "CWelsH264SVCEncoder::InitializeExt(), parameter_translation failed.");
