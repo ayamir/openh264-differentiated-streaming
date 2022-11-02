@@ -505,21 +505,20 @@ void RcCalculatePictureQp (sWelsEncCtx* pEncCtx) {
   iLumaQp = WELS_CLIP3 (iLumaQp, pWelsSvcRc->iMinFrameQp, pWelsSvcRc->iMaxFrameQp);
 
   if (pEncCtx->pSvcParam->bEnableAdaptiveQuant) {
-
-
+    // NOTE:
     // if (y == 0)
     //   return (x / (y + 1));
     // else
     //   return ((y / 2 + x) / y);
-    // iLumaQp = (50 + iLumaQp * 100 - iAverMotionTextureIndexToDeltaQp) / 100;
+    // NOTE: iLumaQp = (50 + iLumaQp * 100 - iAverMotionTextureIndexToDeltaQp) / 100;
     iLumaQp =  WELS_DIV_ROUND (iLumaQp * INT_MULTIPLY - pEncCtx->pVaa->sAdaptiveQuantParam.iAverMotionTextureIndexToDeltaQp,
                                INT_MULTIPLY);
-    // ensure the QP is in the range of [iMinQp, iMaxQp]
+    // NOTE: ensure the QP is in the range of [iMinQp, iMaxQp]
     iLumaQp = WELS_CLIP3 (iLumaQp, pWelsSvcRc->iMinFrameQp, pWelsSvcRc->iMaxFrameQp);
   }
   pWelsSvcRc->iQStep = RcConvertQp2QStep (iLumaQp);
   pWelsSvcRc->iLastCalculatedQScale = iLumaQp;
-  // set QP for full picture
+  // NOTE: set QP for full picture
   pEncCtx->iGlobalQp = iLumaQp;
 }
 
