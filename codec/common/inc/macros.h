@@ -126,6 +126,11 @@
 
 #ifndef WELS_DIV_ROUND
 #define WELS_DIV_ROUND(x,y) ((int32_t)((y)==0?((x)/((y)+1)):(((y)/2+(x))/(y))))
+// NOTE:
+// if (y == 0)
+//   return (x / (y + 1));
+// else
+//   return ((y / 2 + x) / y);
 #endif//WELS_DIV_ROUND
 
 #ifndef WELS_DIV_ROUND64

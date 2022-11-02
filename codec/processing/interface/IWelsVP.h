@@ -208,7 +208,9 @@ typedef struct {
   SVAACalcResult*      pCalcResult;
   SMotionTextureUnit*  pMotionTextureUnit;
 
+  // NOTE: array for storing the quantization parameters for each 16x16 block
   signed char*      pMotionTextureIndexToDeltaQp;
+  // NOTE: average quantization parameter for the whole frame
   int               iAverMotionTextureIndexToDeltaQp; // *AQ_STEP_INT_MULTIPLY
 } SAdaptiveQuantizationParam;
 

@@ -1926,8 +1926,10 @@ int32_t WelsMdInterMbLoopOverDynamicSlice (sWelsEncCtx* pEncCtx, SSlice* pSlice,
     pEncCtx->pFuncList->pfRc.pfWelsRcMbInit (pEncCtx, pCurMb, pSlice);
     // if already reaches the largest number of slices, set QPs to the upper bound
     if (pSlice->bDynamicSlicingSliceSizeCtrlFlag) {
-      //a clearer logic may be:
-      //if there is no need from size control from the pSlice size, the QP will be decided by RC; else it will be set to the max QP
+      // NOTE: modify comment
+      // a clearer logic may be:
+      // if there is no need from size control from the pSlice size, the QP will be decided by RC;
+      // else it will be set to the max QP
       //    however, there are some parameter updating in the rc_mb_init() function, so it cannot be skipped?
       pCurMb->uiLumaQp = pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId].iMaxQp;
       pCurMb->uiChromaQp = g_kuiChromaQpTable[CLIP3_QP_0_51 (pCurMb->uiLumaQp + kuiChromaQpIndexOffset)];

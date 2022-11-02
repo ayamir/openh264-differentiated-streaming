@@ -506,12 +506,20 @@ void RcCalculatePictureQp (sWelsEncCtx* pEncCtx) {
 
   if (pEncCtx->pSvcParam->bEnableAdaptiveQuant) {
 
+
+    // if (y == 0)
+    //   return (x / (y + 1));
+    // else
+    //   return ((y / 2 + x) / y);
+    // iLumaQp = (50 + iLumaQp * 100 - iAverMotionTextureIndexToDeltaQp) / 100;
     iLumaQp =  WELS_DIV_ROUND (iLumaQp * INT_MULTIPLY - pEncCtx->pVaa->sAdaptiveQuantParam.iAverMotionTextureIndexToDeltaQp,
                                INT_MULTIPLY);
+    // ensure the QP is in the range of [iMinQp, iMaxQp]
     iLumaQp = WELS_CLIP3 (iLumaQp, pWelsSvcRc->iMinFrameQp, pWelsSvcRc->iMaxFrameQp);
   }
   pWelsSvcRc->iQStep = RcConvertQp2QStep (iLumaQp);
   pWelsSvcRc->iLastCalculatedQScale = iLumaQp;
+  // set QP for full picture
   pEncCtx->iGlobalQp = iLumaQp;
 }
 
@@ -644,13 +652,18 @@ void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
   SWelsSvcRc* pWelsSvcRc        = &pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId];
   SRCSlicing* pSOverRc          = &pSlice->sSlicingOverRc;
 
+  // NOTE: set mb qp as slice qp
   int32_t iLumaQp               = pSOverRc->iCalculatedQpSlice;
   SDqLayer* pCurLayer           = pEncCtx->pCurDqLayer;
   const uint8_t kuiChromaQpIndexOffset = pCurLayer->sLayerInfo.pPpsP->uiChromaQpIndexOffset;
+  // NOTE: set mb qp with AdaptiveQuantOffset
   if (pEncCtx->pSvcParam->bEnableAdaptiveQuant) {
-    iLumaQp   = (int8_t)WELS_CLIP3 (iLumaQp +
-                                    pEncCtx->pVaa->sAdaptiveQuantParam.pMotionTextureIndexToDeltaQp[pCurMb->iMbXY], pWelsSvcRc->iMinFrameQp,
-                                    pWelsSvcRc->iMaxFrameQp);
+    // NOTE: ensure iLumaQp in range [iMinQp, iMaxQp]
+    iLumaQp   = (int8_t)WELS_CLIP3 (
+      iLumaQp + pEncCtx->pVaa->sAdaptiveQuantParam.pMotionTextureIndexToDeltaQp[pCurMb->iMbXY],
+      pWelsSvcRc->iMinFrameQp,
+      pWelsSvcRc->iMaxFrameQp
+      );
   }
   pCurMb->uiChromaQp    = g_kuiChromaQpTable[CLIP3_QP_0_51 (iLumaQp + kuiChromaQpIndexOffset)];
   pCurMb->uiLumaQp      = iLumaQp;
@@ -1221,8 +1234,10 @@ void WelsRcMbInitGom (sWelsEncCtx* pEncCtx, SMB* pCurMb, SSlice* pSlice) {
       RcGomTargetBits (pEncCtx, pSlice);
     }
 
+    // NOTE: set mb qp as slice qp for P frame
     RcCalculateMbQp (pEncCtx, pSlice, pCurMb);
   } else {
+    // NOTE: set mb qp as picture qp for I frame
     pCurMb->uiLumaQp   = pEncCtx->iGlobalQp;
     pCurMb->uiChromaQp = g_kuiChromaQpTable[CLIP3_QP_0_51 (pCurMb->uiLumaQp + kuiChromaQpIndexOffset)];
   }

@@ -3487,6 +3487,7 @@ int32_t WelsEncoderEncodeExt (sWelsEncCtx* pCtx, SFrameBSInfo* pFbi, const SSour
     pFbi->sLayerInfo[iNalIdx].iNalCount  = 0;
   }
   // perform csc/denoise/downsample/padding, generate spatial layers
+  // NOTE: generate spatial layers
   iSpatialNum = pCtx->pVpp->BuildSpatialPicList (pCtx, pSrcPic);
   if (iSpatialNum == -1) {
     WelsLog (& (pCtx->sLogCtx), WELS_LOG_ERROR, "Failed in allocating memory in BuildSpatialPicList");

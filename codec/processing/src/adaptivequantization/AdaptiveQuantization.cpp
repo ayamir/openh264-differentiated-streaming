@@ -182,6 +182,7 @@ EResult CAdaptiveQuantization::Process (int32_t iType, SPixMap* pSrcPixMap, SPix
         iMotionTextureIndexToDeltaQp += ((int32_t) (iLumaMotionDeltaQp / (AQ_TIME_INT_MULTIPLY)));
       }
 
+      // NOTE: store the delta qp for each mb in pMotionTextureIndexToDeltaQp
       m_sAdaptiveQuantParam.pMotionTextureIndexToDeltaQp[j * iMbWidth + i] = (int8_t) (iMotionTextureIndexToDeltaQp /
           AQ_QSTEP_INT_MULTIPLY);
       iAverMotionTextureIndexToDeltaQp += iMotionTextureIndexToDeltaQp;
