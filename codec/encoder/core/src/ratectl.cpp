@@ -678,7 +678,7 @@ void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
  * \return  void
 */
 void RcAdjustMbQpByRange (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
-  int32_t iLumaQp               = pCurMb->uiLumaQp;
+  uint8_t iLumaQp               = pCurMb->uiLumaQp;
   SObjectRange* pObjectRange    = pEncCtx->pSvcParam->pObjectRange;
   int iObjectRangeNum           = pEncCtx->pSvcParam->iObjectRangeNum;
   SWelsSvcRc* pWelsSvcRc        = &(pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId]);
@@ -687,14 +687,14 @@ void RcAdjustMbQpByRange (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
       if (pCurMb->iMbX > pObjectRange[i].iXStart && pCurMb->iMbX < pObjectRange[i].iXEnd &&
           pCurMb->iMbY > pObjectRange[i].iYStart && pCurMb->iMbY < pObjectRange[i].iYEnd) {
         // NOTE: decrease mb qp in object range
-        iLumaQp = (int8_t)WELS_CLIP3 (
+        iLumaQp = (uint8_t)WELS_CLIP3 (
           iLumaQp - pObjectRange[i].iQpOffset,
           pWelsSvcRc->iMinFrameQp,
           pWelsSvcRc->iMaxFrameQp
         );
       } else {
         // NOTE: increase mb qp out of object range
-        iLumaQp = (int8_t)WELS_CLIP3 (
+        iLumaQp = (uint8_t)WELS_CLIP3 (
           iLumaQp + pObjectRange[i].iQpOffset,
           pWelsSvcRc->iMinFrameQp,
           pWelsSvcRc->iMaxFrameQp
