@@ -647,6 +647,44 @@ void RcInitGomParameters (sWelsEncCtx* pEncCtx) {
   memset (pWelsSvcRc->pGomCost, 0, pWelsSvcRc->iGomSize * sizeof (int32_t));
 }
 
+/*!
+ * \brief   adjust mb qp by object range
+ * \param   pEncCtx    encoder context
+ * \param   pCurMb     current macroblock
+ * \return  void
+*/
+void RcAdjustMbQpByRange (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
+  uint8_t iLumaQp               = pCurMb->uiLumaQp;
+  SObjectRange* pObjectRange    = pEncCtx->pSvcParam->pObjectRange;
+  int iObjectRangeNum           = pEncCtx->pSvcParam->iObjectRangeNum;
+  SWelsSvcRc* pWelsSvcRc        = &(pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId]);
+  if (pObjectRange != NULL) {
+    for (int i = 0; i < iObjectRangeNum; i++) {
+      int16_t iXStart = (int16_t)pObjectRange[i].iXStart;
+      int16_t iXEnd   = (int16_t)pObjectRange[i].iXEnd;
+      int16_t iYStart = (int16_t)pObjectRange[i].iYStart;
+      int16_t iYEnd   = (int16_t)pObjectRange[i].iYEnd;
+      if (pCurMb->iMbX > iXStart && pCurMb->iMbX < iXEnd &&
+          pCurMb->iMbY > iYStart && pCurMb->iMbY < iYEnd) {
+        // NOTE: decrease mb qp in object range
+        iLumaQp = (uint8_t)WELS_CLIP3 (
+          iLumaQp - pObjectRange[i].iQpOffset,
+          pWelsSvcRc->iMinFrameQp,
+          pWelsSvcRc->iMaxFrameQp
+        );
+      } else {
+        // NOTE: increase mb qp out of object range
+        iLumaQp = (uint8_t)WELS_CLIP3 (
+          iLumaQp + pObjectRange[i].iQpOffset,
+          pWelsSvcRc->iMinFrameQp,
+          pWelsSvcRc->iMaxFrameQp
+        );
+      }
+    }
+  }
+  pCurMb->uiLumaQp = iLumaQp;
+}
+
 void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
   SWelsSvcRc* pWelsSvcRc        = &pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId];
   SRCSlicing* pSOverRc          = &pSlice->sSlicingOverRc;
@@ -669,40 +707,6 @@ void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
 
   // TODO(ayamir): test effect
   RcAdjustMbQpByRange(pEncCtx, pCurMb);
-}
-
-/*!
- * \brief   adjust mb qp by object range
- * \param   pEncCtx    encoder context
- * \param   pCurMb     current macroblock
- * \return  void
-*/
-void RcAdjustMbQpByRange (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
-  uint8_t iLumaQp               = pCurMb->uiLumaQp;
-  SObjectRange* pObjectRange    = pEncCtx->pSvcParam->pObjectRange;
-  int iObjectRangeNum           = pEncCtx->pSvcParam->iObjectRangeNum;
-  SWelsSvcRc* pWelsSvcRc        = &(pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId]);
-  if (pObjectRange != NULL) {
-    for (int i = 0; i < iObjectRangeNum; i++) {
-      if (pCurMb->iMbX > pObjectRange[i].iXStart && pCurMb->iMbX < pObjectRange[i].iXEnd &&
-          pCurMb->iMbY > pObjectRange[i].iYStart && pCurMb->iMbY < pObjectRange[i].iYEnd) {
-        // NOTE: decrease mb qp in object range
-        iLumaQp = (uint8_t)WELS_CLIP3 (
-          iLumaQp - pObjectRange[i].iQpOffset,
-          pWelsSvcRc->iMinFrameQp,
-          pWelsSvcRc->iMaxFrameQp
-        );
-      } else {
-        // NOTE: increase mb qp out of object range
-        iLumaQp = (uint8_t)WELS_CLIP3 (
-          iLumaQp + pObjectRange[i].iQpOffset,
-          pWelsSvcRc->iMinFrameQp,
-          pWelsSvcRc->iMaxFrameQp
-        );
-      }
-    }
-  }
-  pCurMb->uiLumaQp = iLumaQp;
 }
 
 SWelsSvcRc* RcJudgeBaseUsability (sWelsEncCtx* pEncCtx) {

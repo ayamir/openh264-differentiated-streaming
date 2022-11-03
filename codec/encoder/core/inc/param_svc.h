@@ -293,6 +293,7 @@ typedef struct TagWelsSvcCodingParam: SEncParamExt {
   int32_t ParamTranscode (const SEncParamExt& pCodingParam) {
     float fParamMaxFrameRate = WELS_CLIP3 (pCodingParam.fMaxFrameRate, MIN_FRAME_RATE, MAX_FRAME_RATE);
 
+    // DONE: set ObjectRangePtr and Num
     pObjectRange = pCodingParam.pObjectRange;
     iObjectRangeNum = pCodingParam.iObjectRangeNum;
 

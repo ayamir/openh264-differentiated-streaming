@@ -538,11 +538,11 @@ typedef struct TagEncParamBase {
 * @brief Object Range in the picture
 */
 typedef struct TagObjectRange {
-  int16_t iXStart;
-  int16_t iXEnd;
-  int16_t iYStart;
-  int16_t iYEnd;
-  int     iQpOffset;
+  short iXStart;
+  short iXEnd;
+  short iYStart;
+  short iYEnd;
+  int   iQpOffset;
 } SObjectRange;
 
 /**
