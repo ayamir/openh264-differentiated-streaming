@@ -309,6 +309,19 @@ class ISVCEncoder {
   virtual int EXTAPI EncodeFrame (const SSourcePicture* kpSrcPic, SFrameBSInfo* pBsInfo) = 0;
 
   /**
+  * @brief Encode one frame
+  * @param kpSrcPic the pointer to the source luminance plane
+  *        chrominance data:
+  *        CbData = kpSrc  +  m_iMaxPicWidth * m_iMaxPicHeight;
+  *        CrData = CbData + (m_iMaxPicWidth * m_iMaxPicHeight)/4;
+  *        the application calling this interface needs to ensure the data validation between the location
+  * @param pBsInfo output bit stream
+  * @param pObjectRange the range of the object to be adjust QP
+  * @return  0 - success; otherwise -failed;
+  */
+  virtual int EXTAPI EncodeFrame (const SSourcePicture* kpSrcPic, SFrameBSInfo* pBsInfo, SObjectRange* pObjectRange) = 0;
+
+  /**
   * @brief  Encode the parameters from output bit stream
   * @param  pBsInfo output bit stream
   * @return 0 - success; otherwise - failed;
