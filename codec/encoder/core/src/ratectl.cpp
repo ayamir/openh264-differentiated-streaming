@@ -659,23 +659,27 @@ void RcAdjustMbQpByRange (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
   int iObjectRangeNum           = pEncCtx->pSvcParam->iObjectRangeNum;
   SWelsSvcRc* pWelsSvcRc        = &(pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId]);
   if (pObjectRange != NULL) {
+    WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: iObjectRangeNum = %d", iObjectRangeNum);
     for (int i = 0; i < iObjectRangeNum; i++) {
-      int16_t iXStart = (int16_t)pObjectRange[i].iXStart;
-      int16_t iXEnd   = (int16_t)pObjectRange[i].iXEnd;
-      int16_t iYStart = (int16_t)pObjectRange[i].iYStart;
-      int16_t iYEnd   = (int16_t)pObjectRange[i].iYEnd;
+      int16_t iXStart   = (int16_t)pObjectRange[i].iXStart;
+      int16_t iXEnd     = (int16_t)pObjectRange[i].iXEnd;
+      int16_t iYStart   = (int16_t)pObjectRange[i].iYStart;
+      int16_t iYEnd     = (int16_t)pObjectRange[i].iYEnd;
+      int     iQpOffset = (int)pObjectRange[i].iQpOffset;
+      WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: iXStart = %d, iXEnd = %d, iYStart = %d, iYEnd = %d, iQpOffset = %d",
+              iXStart, iXEnd, iYStart, iYEnd, iQpOffset);
       if (pCurMb->iMbX > iXStart && pCurMb->iMbX < iXEnd &&
           pCurMb->iMbY > iYStart && pCurMb->iMbY < iYEnd) {
         // NOTE: decrease mb qp in object range
         iLumaQp = (uint8_t)WELS_CLIP3 (
-          iLumaQp - pObjectRange[i].iQpOffset,
+          iLumaQp - iQpOffset,
           pWelsSvcRc->iMinFrameQp,
           pWelsSvcRc->iMaxFrameQp
         );
       } else {
         // NOTE: increase mb qp out of object range
         iLumaQp = (uint8_t)WELS_CLIP3 (
-          iLumaQp + pObjectRange[i].iQpOffset,
+          iLumaQp + iQpOffset,
           pWelsSvcRc->iMinFrameQp,
           pWelsSvcRc->iMaxFrameQp
         );
@@ -766,7 +770,6 @@ void RcGomTargetBits (sWelsEncCtx* pEncCtx, SSlice* pSlice) {
   }
   pSOverRc->iGomTargetBits = iAllocateBits;
 }
-
 
 
 void RcCalculateGomQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
