@@ -655,21 +655,23 @@ void RcInitGomParameters (sWelsEncCtx* pEncCtx) {
 */
 void RcAdjustMbQpByRange (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
   uint8_t iLumaQp               = pCurMb->uiLumaQp;
+  int16_t iMbX                  = pCurMb->iMbX;
+  int16_t iMbY                  = pCurMb->iMbY;
   SObjectRange* pObjectRange    = pEncCtx->pSvcParam->pObjectRange;
   int iObjectRangeNum           = pEncCtx->pSvcParam->iObjectRangeNum;
   SWelsSvcRc* pWelsSvcRc        = &(pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId]);
+  bool isIncreased              = false;
   if (pObjectRange != NULL) {
-    WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: iObjectRangeNum = %d", iObjectRangeNum);
+    // WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: iObjectRangeNum = %d", iObjectRangeNum);
     for (int i = 0; i < iObjectRangeNum; i++) {
       int16_t iXStart   = (int16_t)pObjectRange[i].iXStart;
       int16_t iXEnd     = (int16_t)pObjectRange[i].iXEnd;
       int16_t iYStart   = (int16_t)pObjectRange[i].iYStart;
       int16_t iYEnd     = (int16_t)pObjectRange[i].iYEnd;
       int     iQpOffset = (int)pObjectRange[i].iQpOffset;
-      WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: iXStart = %d, iXEnd = %d, iYStart = %d, iYEnd = %d, iQpOffset = %d",
-              iXStart, iXEnd, iYStart, iYEnd, iQpOffset);
-      if (pCurMb->iMbX > iXStart && pCurMb->iMbX < iXEnd &&
-          pCurMb->iMbY > iYStart && pCurMb->iMbY < iYEnd) {
+      // WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: iXStart = %d, iXEnd = %d, iYStart = %d, iYEnd = %d, iQpOffset = %d",
+      //         iXStart, iXEnd, iYStart, iYEnd, iQpOffset);
+      if (iMbX > iXStart && iMbX < iXEnd && iMbY > iYStart && iMbY < iYEnd) {
         // NOTE: decrease mb qp in object range
         iLumaQp = (uint8_t)WELS_CLIP3 (
           iLumaQp - iQpOffset,
@@ -683,8 +685,14 @@ void RcAdjustMbQpByRange (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
           pWelsSvcRc->iMinFrameQp,
           pWelsSvcRc->iMaxFrameQp
         );
+        isIncreased = true;
       }
     }
+  }
+  if (isIncreased) {
+    WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: MB: X=%d, Y=%d, increased iLumaQp=%d", iMbX, iMbY, iLumaQp);
+  } else {
+    WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: MB: X=%d, Y=%d, decreased iLumaQp=%d", iMbX, iMbY, iLumaQp);
   }
   pCurMb->uiLumaQp = iLumaQp;
 }
