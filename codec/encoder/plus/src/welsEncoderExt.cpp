@@ -520,6 +520,7 @@ int CWelsH264SVCEncoder ::EncodeFrameInternal (const SSourcePicture*  pSrcPic, S
     return cmUnsupportedData;
   }
 
+  // NOTE: set object range for pSvcParam here...
   m_pEncContext->pSvcParam->iObjectRangeNum = 1;
   m_pEncContext->pSvcParam->pObjectRange = pObjectRange;
 

@@ -660,7 +660,6 @@ void RcAdjustMbQpByRange (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
   SObjectRange* pObjectRange    = pEncCtx->pSvcParam->pObjectRange;
   int iObjectRangeNum           = pEncCtx->pSvcParam->iObjectRangeNum;
   SWelsSvcRc* pWelsSvcRc        = &(pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId]);
-  bool isIncreased              = false;
   if (pObjectRange != NULL) {
     // WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: iObjectRangeNum = %d", iObjectRangeNum);
     for (int i = 0; i < iObjectRangeNum; i++) {
@@ -678,6 +677,7 @@ void RcAdjustMbQpByRange (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
           pWelsSvcRc->iMinFrameQp,
           pWelsSvcRc->iMaxFrameQp
         );
+        // WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: MB: X=%d, Y=%d, decreased iLumaQp=%d", iMbX, iMbY, iLumaQp);
       } else {
         // NOTE: increase mb qp out of object range
         iLumaQp = (uint8_t)WELS_CLIP3 (
@@ -685,14 +685,9 @@ void RcAdjustMbQpByRange (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
           pWelsSvcRc->iMinFrameQp,
           pWelsSvcRc->iMaxFrameQp
         );
-        isIncreased = true;
+        // WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: MB: X=%d, Y=%d, increased iLumaQp=%d", iMbX, iMbY, iLumaQp);
       }
     }
-  }
-  if (isIncreased) {
-    WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: MB: X=%d, Y=%d, increased iLumaQp=%d", iMbX, iMbY, iLumaQp);
-  } else {
-    WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: MB: X=%d, Y=%d, decreased iLumaQp=%d", iMbX, iMbY, iLumaQp);
   }
   pCurMb->uiLumaQp = iLumaQp;
 }
