@@ -66,7 +66,7 @@
 
 #define SVC_QUALITY_BASE_QP             26
 #define MAX_SLICEGROUP_IDS              8       // Count number of SSlice Groups
-#define MAX_THREADS_NUM                 4       // assume to support up to 4 logical cores(threads)
+#define MAX_THREADS_NUM                 64      // assume to support up to 64 logical cores(threads)
 
 #define INTPEL_NEEDED_MARGIN            (3)  // for safe sub-pel MC
 

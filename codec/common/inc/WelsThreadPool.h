@@ -53,7 +53,7 @@ namespace WelsCommon {
 class  CWelsThreadPool : public CWelsThread, public IWelsTaskThreadSink {
  public:
   enum {
-    DEFAULT_THREAD_NUM = 4,
+    DEFAULT_THREAD_NUM = 64,
   };
 
   static WELS_THREAD_ERROR_CODE SetThreadNum (int32_t iMaxThreadNum);
@@ -96,7 +96,7 @@ class  CWelsThreadPool : public CWelsThread, public IWelsTaskThreadSink {
  private:
   CWelsThreadPool();
   virtual ~CWelsThreadPool();
-  
+
   WELS_THREAD_ERROR_CODE StopAllRunning();
 
   static int32_t   m_iRefCount;

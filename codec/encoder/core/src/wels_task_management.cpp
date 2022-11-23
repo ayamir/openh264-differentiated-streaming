@@ -96,13 +96,17 @@ CWelsTaskManageBase::~CWelsTaskManageBase() {
 WelsErrorType CWelsTaskManageBase::Init (sWelsEncCtx* pEncCtx) {
   m_pEncCtx = pEncCtx;
   m_iThreadNum = m_pEncCtx->pSvcParam->iMultipleThreadIdc;
+  WelsLog (& (m_pEncCtx->sLogCtx), WELS_LOG_INFO, "CWelsTaskManageBase::Init(), m_iThreadNum = %d", m_iThreadNum);
 
   int32_t iReturn = ENC_RETURN_SUCCESS;
   //fprintf(stdout, "m_pThreadPool = &(CWelsThreadPool::GetInstance, this=%x\n", this);
   iReturn = CWelsThreadPool::SetThreadNum (m_iThreadNum);
   m_pThreadPool = (CWelsThreadPool::AddReference());
   if ((iReturn != ENC_RETURN_SUCCESS) && pEncCtx) {
-    WelsLog (& (pEncCtx->sLogCtx), WELS_LOG_WARNING, "Set Thread Num to %d did not succeed, current thread num in use: %d",
+    WelsLog (& (pEncCtx->sLogCtx), WELS_LOG_WARNING, "iReturn=%d, Set Thread Num to %d did not succeed, current thread num in use: %d",
+             iReturn, m_iThreadNum, m_pThreadPool->GetThreadNum());
+  } else {
+    WelsLog (& (pEncCtx->sLogCtx), WELS_LOG_INFO, "iReturn=%d, Set Thread Num to %d succeed, current thread num in use: %d",
              m_iThreadNum, m_pThreadPool->GetThreadNum());
   }
   WELS_VERIFY_RETURN_IF (ENC_RETURN_MEMALLOCERR, NULL == m_pThreadPool)

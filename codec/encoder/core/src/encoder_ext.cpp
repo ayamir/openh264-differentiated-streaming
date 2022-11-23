@@ -2048,6 +2048,7 @@ int32_t InitSliceSettings (SLogContext* pLogCtx,     SWelsSvcCodingParam* pCodin
     ++ iSpatialIdx;
   } while (iSpatialIdx < iSpatialNum);
 
+  // NOTE: set iMultipleThreadIdc to minimum value of iMultipleThreadIdc and iMaxSliceCount
   pCodingParam->iMultipleThreadIdc = WELS_MIN (kiCpuCores, iMaxSliceCount);
   if (pCodingParam->iLoopFilterDisableIdc == 0
       && pCodingParam->iMultipleThreadIdc != 1) // Loop filter requested to be enabled, with threading enabled
@@ -2340,6 +2341,7 @@ int32_t WelsInitEncoderExt (sWelsEncCtx** ppCtx, SWelsSvcCodingParam* pCodingPar
   InitFunctionPointers (pCtx, pCtx->pSvcParam, uiCpuFeatureFlags);
 
   pCtx->iActiveThreadsNum = pCodingParam->iMultipleThreadIdc;
+  WelsLog (&pCtx->sLogCtx, WELS_LOG_INFO, "WelsInitEncoderExt(), iActiveThreadsNum= %d.", pCtx->iActiveThreadsNum);
   pCtx->iMaxSliceCount = iSliceNum;
   iRet = RequestMemorySvc (&pCtx, pExistingParasetList);
   if (iRet != 0) {
