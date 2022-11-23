@@ -162,7 +162,6 @@ CWelsH264SVCEncoder::~CWelsH264SVCEncoder() {
 }
 
 void CWelsH264SVCEncoder::InitEncoder (void) {
-
   m_pWelsTrace = new welsCodecTrace();
   if (m_pWelsTrace == NULL) {
     return;
@@ -492,9 +491,7 @@ int CWelsH264SVCEncoder::EncodeFrame (const SSourcePicture* kpSrcPic, SFrameBSIn
     return cmInitParaError;
   }
 
-  WelsLog(&m_pWelsTrace->m_sLogCtx, WELS_LOG_WARNING, "EncodeFrame() with pObjectRange before EncodeFrameInternal()");
   const int32_t kiEncoderReturn = EncodeFrameInternal (kpSrcPic, pBsInfo, pObjectRange);
-  WelsLog(&m_pWelsTrace->m_sLogCtx, WELS_LOG_WARNING, "EncodeFrame() with pObjectRange after EncodeFrameInternal()");
 
   if (kiEncoderReturn != cmResultSuccess) {
     WelsLog (&m_pWelsTrace->m_sLogCtx, WELS_LOG_ERROR, "CWelsH264SVCEncoder::EncodeFrame(), kiEncoderReturn %d",
@@ -1211,7 +1208,7 @@ int CWelsH264SVCEncoder::SetOption (ENCODER_OPTION eOptionId, void* pOption) {
   break;
   case ENCODER_OPTION_TRACE_CALLBACK: {
     if (m_pWelsTrace) {
-      WelsTraceCallback callback = * ((WelsTraceCallback*)pOption);
+      WelsTraceCallback callback = (WelsTraceCallback)pOption;
       m_pWelsTrace->SetTraceCallback (callback);
       WelsLog (&m_pWelsTrace->m_sLogCtx, WELS_LOG_INFO,
                "CWelsH264SVCEncoder::SetOption():ENCODER_OPTION_TRACE_CALLBACK callback = %p.",

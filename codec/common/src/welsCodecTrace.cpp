@@ -50,17 +50,10 @@ static void welsStderrTrace (void* ctx, int level, const char* string) {
   fprintf (stderr, "%s\n", string);
 }
 
-static void welsFileTrace (void* ctx, int level, const char* string) {
-  FILE *fp;
-  fp = fopen("D:\\MM\\Log\\openh264.log", "a+");
-  fprintf (fp, "%s\n", string);
-  fclose(fp);
-}
-
 welsCodecTrace::welsCodecTrace() {
 
   m_iTraceLevel = WELS_LOG_DEFAULT;
-  m_fpTrace = welsFileTrace;
+  m_fpTrace = welsStderrTrace;
   m_pTraceCtx = NULL;
 
   m_sLogCtx.pLogCtx = this;
