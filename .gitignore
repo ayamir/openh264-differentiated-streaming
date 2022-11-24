@@ -60,3 +60,4 @@ codec/build/iOS/dec/welsdec/build/
 # editor files
 *~
 
+.vscode/c_cpp_properties.json
