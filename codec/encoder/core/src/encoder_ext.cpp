@@ -915,6 +915,7 @@ int32_t   InitMbListD (sWelsEncCtx** ppCtx) {
   if (iNumDlayer > MAX_DEPENDENCY_LAYER)
     return 1;
 
+  // calculate the overall MB number for all layers
   for (i = 0; i < iNumDlayer; i++) {
     iMbWidth = ((*ppCtx)->pSvcParam->sSpatialLayers[i].iVideoWidth + 15) >> 4;
     iMbHeight = ((*ppCtx)->pSvcParam->sSpatialLayers[i].iVideoHeight + 15) >> 4;
@@ -929,7 +930,9 @@ int32_t   InitMbListD (sWelsEncCtx** ppCtx) {
                            "ppMbListD[0]"));
   WELS_VERIFY_RETURN_IF (1, (*ppCtx)->ppMbListD[0] == NULL)
   (*ppCtx)->ppDqLayerList[0]->sMbDataP = (*ppCtx)->ppMbListD[0];
+  // init mb info for the first layer
   InitMbInfo (*ppCtx, (*ppCtx)->ppMbListD[0], (*ppCtx)->ppDqLayerList[0], 0, iMbSize[iNumDlayer - 1]);
+  // init mb info for others
   for (i = 1; i < iNumDlayer; i++) {
     (*ppCtx)->ppMbListD[i] = (*ppCtx)->ppMbListD[i - 1] + iMbSize[i - 1];
     (*ppCtx)->ppDqLayerList[i]->sMbDataP = (*ppCtx)->ppMbListD[i];
@@ -1566,6 +1569,7 @@ int32_t RequestMemorySvc (sWelsEncCtx** ppCtx, SExistingParasetList* pExistingPa
   iMaxPicHeight = pFinalSpatial->iVideoHeight;
   iCountMaxMbNum = ((15 + iMaxPicWidth) >> 4) * ((15 + iMaxPicHeight) >> 4);
 
+  // acquire count number of layers and NALs based on configurable paramters dependency
   iResult = AcquireLayersNals (ppCtx, pParam, &iCountLayers, &iCountNals);
   if (iResult) {
     WelsLog (& (*ppCtx)->sLogCtx, WELS_LOG_WARNING, "RequestMemorySvc(), AcquireLayersNals failed(%d)!", iResult);
@@ -1583,6 +1587,7 @@ int32_t RequestMemorySvc (sWelsEncCtx** ppCtx, SExistingParasetList* pExistingPa
   int32_t iTotalLength = 0;
   int32_t iLayerBsSize = 0;
   iIndex = 0;
+  // configure for each spatial layer
   while (iIndex < pParam->iSpatialLayerNum) {
     SSpatialLayerConfig* fDlp = &pParam->sSpatialLayers[iIndex];
 
@@ -1596,12 +1601,15 @@ int32_t RequestMemorySvc (sWelsEncCtx** ppCtx, SExistingParasetList* pExistingPa
     SSliceArgument* pSliceArgument = & (fDlp->sSliceArgument);
     if (pSliceArgument->uiSliceMode == SM_SIZELIMITED_SLICE) {
       bDynamicSlice = true;
+      // estimate the max slice number for SM_SINGLE_SLICE mode
       uiMaxSliceNumEstimation = WELS_MIN (AVERSLICENUM_CONSTRAINT,
                                           (iLayerBsSize / pSliceArgument->uiSliceSizeConstraint) + 1);
+      // set iMaxSliceCount as Max value of uiMaxSliceNumEstimation and iMaxSliceCount
       (*ppCtx)->iMaxSliceCount = WELS_MAX ((*ppCtx)->iMaxSliceCount, (int) uiMaxSliceNumEstimation);
       iSliceBufferSize = (WELS_MAX (pSliceArgument->uiSliceSizeConstraint,
                                     iLayerBsSize / uiMaxSliceNumEstimation) << 1) + MAX_MACROBLOCK_SIZE_IN_BYTE_x2;
     } else {
+      // bDynamicSlice = false for other modes
       (*ppCtx)->iMaxSliceCount = WELS_MAX ((*ppCtx)->iMaxSliceCount, (int) pSliceArgument->uiSliceNum);
       iSliceBufferSize = ((iLayerBsSize / pSliceArgument->uiSliceNum) << 1) + MAX_MACROBLOCK_SIZE_IN_BYTE_x2;
     }
@@ -1646,6 +1654,7 @@ int32_t RequestMemorySvc (sWelsEncCtx** ppCtx, SExistingParasetList* pExistingPa
     }
   }
   // for pSlice bs buffers
+  // request resource for multithread
   if (pParam->iMultipleThreadIdc > 1
       && RequestMtResource (ppCtx, pParam, iCountBsLen, iMaxSliceBufferSize, bDynamicSlice)) {
     WelsLog (& (*ppCtx)->sLogCtx, WELS_LOG_WARNING, "RequestMemorySvc(), RequestMtResource failed!");
@@ -1754,12 +1763,14 @@ int32_t RequestMemorySvc (sWelsEncCtx** ppCtx, SExistingParasetList* pExistingPa
   (*ppCtx)->ppDqLayerList = (SDqLayer**)pMa->WelsMallocz (kiNumDependencyLayers * sizeof (SDqLayer*), "ppDqLayerList");
   WELS_VERIFY_RETURN_IF (1, (NULL == (*ppCtx)->ppDqLayerList))
 
+  // initialize ppDqLayerList and slicepEncCtx_list due to count number of layers available
   iResult = InitDqLayers (ppCtx, pExistingParasetList);
   if (iResult) {
     WelsLog (& (*ppCtx)->sLogCtx, WELS_LOG_WARNING, "RequestMemorySvc(), InitDqLayers failed(%d)!", iResult);
     return iResult;
   }
 
+  // init macroblocks info for all layers
   if (InitMbListD (ppCtx)) {
     WelsLog (& (*ppCtx)->sLogCtx, WELS_LOG_WARNING, "RequestMemorySvc(), InitMbListD failed!");
     return 1;
@@ -2294,11 +2305,14 @@ int32_t WelsInitEncoderExt (sWelsEncCtx** ppCtx, SWelsSvcCodingParam* pCodingPar
     return 1;
   }
 
+  // validate the input parameters
   iRet = ParamValidationExt (pLogCtx, pCodingParam);
   if (iRet != 0) {
     WelsLog (pLogCtx, WELS_LOG_ERROR, "WelsInitEncoderExt(), ParamValidationExt failed return %d.", iRet);
     return iRet;
   }
+
+  // determine Temporal Settings
   iRet = pCodingParam->DetermineTemporalSettings();
   if (iRet != ENC_RETURN_SUCCESS) {
     WelsLog (pLogCtx, WELS_LOG_ERROR,
@@ -2306,6 +2320,8 @@ int32_t WelsInitEncoderExt (sWelsEncCtx** ppCtx, SWelsSvcCodingParam* pCodingPar
              iRet);
     return iRet;
   }
+
+  // determine the number of threads
   iRet = GetMultipleThreadIdc (pLogCtx, pCodingParam, iSliceNum, iCacheLineSize, uiCpuFeatureFlags);
   if (iRet != 0) {
     WelsLog (pLogCtx, WELS_LOG_ERROR, "WelsInitEncoderExt(), GetMultipleThreadIdc failed return %d.", iRet);
@@ -2325,24 +2341,31 @@ int32_t WelsInitEncoderExt (sWelsEncCtx** ppCtx, SWelsSvcCodingParam* pCodingPar
   pCtx->pMemAlign = new CMemoryAlign (iCacheLineSize);
   WELS_VERIFY_RETURN_PROC_IF (1, (NULL == pCtx->pMemAlign), WelsUninitEncoderExt (&pCtx))
 
+  // malloc memory for encode parameters
   iRet = AllocCodingParam (&pCtx->pSvcParam, pCtx->pMemAlign);
   if (iRet != 0) {
     WelsUninitEncoderExt (&pCtx);
     return iRet;
   }
-  // NOTE: copy content of pCodingParam to pCtx->pSvcParam
+
+  // copy content of pCodingParam to pCtx->pSvcParam
   memcpy (pCtx->pSvcParam, pCodingParam, sizeof (SWelsSvcCodingParam)); // confirmed_safe_unsafe_usage
 
+  // malloc memory for function ptrs
   pCtx->pFuncList = (SWelsFuncPtrList*)pCtx->pMemAlign->WelsMallocz (sizeof (SWelsFuncPtrList), "SWelsFuncPtrList");
   if (NULL == pCtx->pFuncList) {
     WelsUninitEncoderExt (&pCtx);
     return 1;
   }
+  // init function ptrs
   InitFunctionPointers (pCtx, pCtx->pSvcParam, uiCpuFeatureFlags);
 
+  // set iActualThreadsNum as iMultipleThreadIdc
   pCtx->iActiveThreadsNum = pCodingParam->iMultipleThreadIdc;
   WelsLog (&pCtx->sLogCtx, WELS_LOG_INFO, "WelsInitEncoderExt(), iActiveThreadsNum= %d.", pCtx->iActiveThreadsNum);
+  // set iMaxSliceCount as iSliceNum
   pCtx->iMaxSliceCount = iSliceNum;
+  // IMPO: request memory for encode process
   iRet = RequestMemorySvc (&pCtx, pExistingParasetList);
   if (iRet != 0) {
     WelsLog (pLogCtx, WELS_LOG_ERROR, "WelsInitEncoderExt(), RequestMemorySvc failed return %d.", iRet);
@@ -2354,6 +2377,7 @@ int32_t WelsInitEncoderExt (sWelsEncCtx** ppCtx, SWelsSvcCodingParam* pCodingPar
     WelsCabacInit (pCtx);
   WelsRcInitModule (pCtx,  pCtx->pSvcParam->iRCMode);
 
+  // new preprocess for different usage
   pCtx->pVpp = CWelsPreProcess::CreatePreProcess (pCtx);
   if (pCtx->pVpp == NULL) {
     iRet = 1;
@@ -2361,6 +2385,7 @@ int32_t WelsInitEncoderExt (sWelsEncCtx** ppCtx, SWelsSvcCodingParam* pCodingPar
     WelsUninitEncoderExt (&pCtx);
     return iRet;
   }
+  // malloc memory for spatial pictures
   if ((iRet = pCtx->pVpp->AllocSpatialPictures (pCtx, pCtx->pSvcParam)) != 0) {
     WelsLog (pLogCtx, WELS_LOG_ERROR, "WelsInitEncoderExt(), pVPP alloc spatial pictures failed");
     WelsUninitEncoderExt (&pCtx);

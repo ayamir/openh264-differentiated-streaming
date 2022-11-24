@@ -113,6 +113,8 @@ WelsErrorType CWelsTaskManageBase::Init (sWelsEncCtx* pEncCtx) {
   //fprintf(stdout, "m_pThreadPool = &(CWelsThreadPool::GetInstance3\n");
 
   iReturn = ENC_RETURN_SUCCESS;
+
+  // NOTE: CreateTasks for each spatial layer(up to 4 layers), but only 1 spatial layer which index is 0 used in webrtc
   for (int32_t iDid = 0; iDid < MAX_DEPENDENCY_LAYER; iDid++) {
     m_pcAllTaskList[CWelsBaseTask::WELS_ENC_TASK_ENCODING][iDid] = m_cEncodingTaskList[iDid];
     m_pcAllTaskList[CWelsBaseTask::WELS_ENC_TASK_UPDATEMBMAP][iDid] = m_cPreEncodingTaskList[iDid];
