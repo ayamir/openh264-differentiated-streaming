@@ -654,42 +654,39 @@ void RcInitGomParameters (sWelsEncCtx* pEncCtx) {
  * \return  void
 */
 void RcAdjustMbQpByRange (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
-  uint8_t iLumaQp               = pCurMb->uiLumaQp;
-  int16_t iMbX                  = pCurMb->iMbX;
-  int16_t iMbY                  = pCurMb->iMbY;
   SObjectRange* pObjectRange    = pEncCtx->pSvcParam->pObjectRange;
   int iObjectRangeNum           = pEncCtx->pSvcParam->iObjectRangeNum;
+
+  uint8_t uiLumaQp              = pCurMb->uiLumaQp;
+  uint8_t uiChromaQp            = pCurMb->uiChromaQp;
+  int16_t iMbX                  = pCurMb->iMbX;
+  int16_t iMbY                  = pCurMb->iMbY;
+  SDqLayer* pCurLayer           = pEncCtx->pCurDqLayer;
   SWelsSvcRc* pWelsSvcRc        = &(pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId]);
+  const uint8_t kuiChromaQpIndexOffset = pCurLayer->sLayerInfo.pPpsP->uiChromaQpIndexOffset;
+  // SSliceCtx* pCurSliceCtx       = &(pEncCtx->pCurDqLayer->sSliceEncCtx);
+  // WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING,
+  // "RcAdjustMbQpByRange: iMbWidth=%d, iMbHeight=%d, iSliceNumInFrame=%d, iMbNumInFrame=%d",
+  // pCurSliceCtx->iMbWidth, pCurSliceCtx->iMbHeight, pCurSliceCtx->iSliceNumInFrame, pCurSliceCtx->iMbNumInFrame);
   if (pObjectRange != NULL) {
-    // WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: iObjectRangeNum = %d", iObjectRangeNum);
     for (int i = 0; i < iObjectRangeNum; i++) {
       int16_t iXStart   = (int16_t)pObjectRange[i].iXStart;
       int16_t iXEnd     = (int16_t)pObjectRange[i].iXEnd;
       int16_t iYStart   = (int16_t)pObjectRange[i].iYStart;
       int16_t iYEnd     = (int16_t)pObjectRange[i].iYEnd;
       int     iQpOffset = (int)pObjectRange[i].iQpOffset;
-      // WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: iXStart = %d, iXEnd = %d, iYStart = %d, iYEnd = %d, iQpOffset = %d",
-      //         iXStart, iXEnd, iYStart, iYEnd, iQpOffset);
       if (iMbX > iXStart && iMbX < iXEnd && iMbY > iYStart && iMbY < iYEnd) {
-        // NOTE: decrease mb qp in object range
-        iLumaQp = (uint8_t)WELS_CLIP3 (
-          iLumaQp - iQpOffset,
+        uiLumaQp = (uint8_t)WELS_CLIP3 (
+          uiLumaQp + iQpOffset,
           pWelsSvcRc->iMinFrameQp,
           pWelsSvcRc->iMaxFrameQp
         );
-        // WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: MB: X=%d, Y=%d, decreased iLumaQp=%d", iMbX, iMbY, iLumaQp);
-      } else {
-        // NOTE: increase mb qp out of object range
-        iLumaQp = (uint8_t)WELS_CLIP3 (
-          iLumaQp + iQpOffset,
-          pWelsSvcRc->iMinFrameQp,
-          pWelsSvcRc->iMaxFrameQp
-        );
-        // WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING, "RcAdjustMbQpByRange: MB: X=%d, Y=%d, increased iLumaQp=%d", iMbX, iMbY, iLumaQp);
+        uiChromaQp = g_kuiChromaQpTable[CLIP3_QP_0_51 (uiLumaQp + kuiChromaQpIndexOffset)];
       }
     }
   }
-  pCurMb->uiLumaQp = iLumaQp;
+  pCurMb->uiLumaQp = uiLumaQp;
+  pCurMb->uiChromaQp = uiChromaQp;
 }
 
 void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
