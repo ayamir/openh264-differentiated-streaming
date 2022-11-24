@@ -521,8 +521,8 @@ int CWelsH264SVCEncoder ::EncodeFrameInternal (const SSourcePicture*  pSrcPic, S
   m_pEncContext->pSvcParam->iObjectRangeNum = 1;
   m_pEncContext->pSvcParam->pObjectRange = pObjectRange;
 
-  WelsLog(&m_pWelsTrace->m_sLogCtx, WELS_LOG_WARNING, "CWelsH264SVCEncoder::EncodeFrameInternal(), pObjectRange->iXStart=%d, pObjectRange->iXEnd=%d, pObjectRange->iYStart=%d, pObjectRange->iYEnd=%d, pObjectRange->iQpOffset=%d",
-          pObjectRange->iXStart, pObjectRange->iXEnd, pObjectRange->iYStart, pObjectRange->iYEnd, pObjectRange->iQpOffset);
+  // WelsLog(&m_pWelsTrace->m_sLogCtx, WELS_LOG_WARNING, "CWelsH264SVCEncoder::EncodeFrameInternal(), pObjectRange->iXStart=%d, pObjectRange->iXEnd=%d, pObjectRange->iYStart=%d, pObjectRange->iYEnd=%d, pObjectRange->iQpOffset=%d",
+  //         pObjectRange->iXStart, pObjectRange->iXEnd, pObjectRange->iYStart, pObjectRange->iYEnd, pObjectRange->iQpOffset);
 
   const int64_t kiBeforeFrameUs = WelsTime();
   const int32_t kiEncoderReturn = WelsEncoderEncodeExt (m_pEncContext, pBsInfo, pSrcPic);
