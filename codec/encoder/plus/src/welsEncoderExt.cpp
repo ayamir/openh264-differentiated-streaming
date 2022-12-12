@@ -681,7 +681,7 @@ void CWelsH264SVCEncoder::TraceParamInfo (SEncParamExt* pParam) {
 void CWelsH264SVCEncoder::LogStatistics (const int64_t kiCurrentFrameTs, int32_t iMaxDid) {
   for (int32_t iDid = 0; iDid <= iMaxDid; iDid++) {
     SEncoderStatistics* pStatistics = & (m_pEncContext->sEncoderStatistics[iDid]);
-    WelsLog (&m_pWelsTrace->m_sLogCtx, WELS_LOG_INFO,
+    WelsLogFile (&m_pWelsTrace->m_sLogCtx, WELS_LOG_INFO,
              "EncoderStatistics: SpatialId = %d,%dx%d, SpeedInMs: %f, fAverageFrameRate=%f, "
              "LastFrameRate=%f, LatestBitRate=%d, LastFrameQP=%d, uiInputFrameCount=%d, uiSkippedFrameCount=%d, "
              "uiResolutionChangeTimes=%d, uIDRReqNum=%d, uIDRSentNum=%d, uLTRSentNum=NA, iTotalEncodedBytes=%lu at Ts = %" PRId64,

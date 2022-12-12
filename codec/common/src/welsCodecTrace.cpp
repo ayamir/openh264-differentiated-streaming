@@ -50,14 +50,22 @@ static void welsStderrTrace (void* ctx, int level, const char* string) {
   fprintf (stderr, "%s\n", string);
 }
 
+static void welsFileTrace (void* ctx, int level, const char* string) {
+  FILE* fp = fopen("D:\\MM\\Log\\openh264\\statistics.log", "a+");
+  fprintf (fp, "%s\n", string);
+  fclose(fp);
+}
+
 welsCodecTrace::welsCodecTrace() {
 
   m_iTraceLevel = WELS_LOG_DEFAULT;
   m_fpTrace = welsStderrTrace;
+  m_fpFileTrace = welsFileTrace;
   m_pTraceCtx = NULL;
 
   m_sLogCtx.pLogCtx = this;
   m_sLogCtx.pfLog = StaticCodecTrace;
+  m_sLogCtx.pfLogFile = StaticFileCodecTrace;
   m_sLogCtx.pCodecInstance = NULL;
 }
 
@@ -72,6 +80,11 @@ void welsCodecTrace::StaticCodecTrace (void* pCtx, const int32_t iLevel, const c
   self->CodecTrace (iLevel, Str_Format, vl);
 }
 
+void welsCodecTrace::StaticFileCodecTrace (void* pCtx, const int32_t iLevel, const char* Str_Format, va_list vl) {
+  welsCodecTrace* self = (welsCodecTrace*) pCtx;
+  self->FileCodecTrace (iLevel, Str_Format, vl);
+}
+
 void welsCodecTrace::CodecTrace (const int32_t iLevel, const char* Str_Format, va_list vl) {
   if (m_iTraceLevel < iLevel) {
     return;
@@ -81,6 +94,18 @@ void welsCodecTrace::CodecTrace (const int32_t iLevel, const char* Str_Format, v
   WelsVsnprintf (pBuf, MAX_LOG_SIZE, Str_Format, vl); // confirmed_safe_unsafe_usage
   if (m_fpTrace) {
     m_fpTrace (m_pTraceCtx, iLevel, pBuf);
+  }
+}
+
+void welsCodecTrace::FileCodecTrace (const int32_t iLevel, const char* Str_Format, va_list vl) {
+  if (m_iTraceLevel < iLevel) {
+    return;
+  }
+
+  char pBuf[MAX_LOG_SIZE] = {0};
+  WelsVsnprintf (pBuf, MAX_LOG_SIZE, Str_Format, vl); // confirmed_safe_unsafe_usage
+  if (m_fpTrace) {
+    m_fpFileTrace (m_pTraceCtx, iLevel, pBuf);
   }
 }
 

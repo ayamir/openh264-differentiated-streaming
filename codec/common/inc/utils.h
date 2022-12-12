@@ -52,6 +52,7 @@ typedef void (*PWelsLogCallbackFunc) (void* pCtx, const int32_t iLevel, const ch
 
 typedef struct TagLogContext {
   PWelsLogCallbackFunc pfLog;
+  PWelsLogCallbackFunc pfLogFile;
   void* pLogCtx;
   void* pCodecInstance;
 } SLogContext;
@@ -61,8 +62,12 @@ typedef struct TagLogContext {
 extern void WelsLog (SLogContext* pCtx, int32_t iLevel, const char* kpFmt, ...) __attribute__ ((__format__ (__printf__,
     3,
     4)));
+extern void WelsLogFile (SLogContext* pCtx, int32_t iLevel, const char* kpFmt, ...) __attribute__ ((__format__ (__printf__,
+    3,
+    4)));
 #else
 extern void WelsLog (SLogContext* pCtx, int32_t iLevel, const char* kpFmt, ...);
+extern void WelsLogFile (SLogContext* pCtx, int32_t iLevel, const char* kpFmt, ...);
 #endif
 
 /*

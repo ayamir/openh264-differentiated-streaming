@@ -51,10 +51,13 @@ class welsCodecTrace {
 
  private:
   static void StaticCodecTrace (void* pCtx, const int32_t kiLevel, const char* kpStrFormat, va_list vl);
+  static void StaticFileCodecTrace (void* pCtx, const int32_t kiLevel, const char* kpStrFormat, va_list vl);
   void CodecTrace (const int32_t kiLevel, const char* kpStrFormat, va_list vl);
+  void FileCodecTrace (const int32_t kiLevel, const char* kpStrFormat, va_list vl);
 
   int32_t       m_iTraceLevel;
   WelsTraceCallback m_fpTrace;
+  WelsTraceCallback m_fpFileTrace;
   void*         m_pTraceCtx;
  public:
 

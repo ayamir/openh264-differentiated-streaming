@@ -1396,7 +1396,7 @@ int32_t AllocStrideTables (sWelsEncCtx** ppCtx, const int32_t kiNumSpatialLayers
     ++ iSpatialIdx;
   }
 
-  // initialize pMbIndexX and pMbIndexY tables as below
+  // NOTE: initialize pMbIndexX and pMbIndexY tables as below
 
   iMaxMbWidth   = sMbSizeMap[kiNumSpatialLayers - 1].iMbWidth;
   iMaxMbWidth   = WELS_ALIGN (iMaxMbWidth, 4);  // 4 loops for int16_t required introduced as below
