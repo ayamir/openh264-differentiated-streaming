@@ -689,6 +689,30 @@ void RcAdjustMbQpByRange (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
   pCurMb->uiChromaQp = uiChromaQp;
 }
 
+void RcAdjustMbQpByPriorityArray (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
+  int *pPriorityArray                  = pEncCtx->pSvcParam->pPriorityArray;
+  uint8_t uiLumaQp                     = pCurMb->uiLumaQp;
+  uint8_t uiChromaQp                   = pCurMb->uiChromaQp;
+  SDqLayer* pCurLayer                  = pEncCtx->pCurDqLayer;
+  int32_t iMbXY                        = pCurMb->iMbXY;
+  SWelsSvcRc* pWelsSvcRc               = &(pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId]);
+  const uint8_t kuiChromaQpIndexOffset = pCurLayer->sLayerInfo.pPpsP->uiChromaQpIndexOffset;
+  // SSliceCtx* pCurSliceCtx       = &(pEncCtx->pCurDqLayer->sSliceEncCtx);
+  // WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING,
+  // "RcAdjustMbQpByRange: iMbWidth=%d, iMbHeight=%d, iSliceNumInFrame=%d, iMbNumInFrame=%d",
+  // pCurSliceCtx->iMbWidth, pCurSliceCtx->iMbHeight, pCurSliceCtx->iSliceNumInFrame, pCurSliceCtx->iMbNumInFrame);
+  if (pPriorityArray != NULL) {
+    uiLumaQp = (uint8_t)WELS_CLIP3 (
+      uiLumaQp + pPriorityArray[iMbXY],
+      pWelsSvcRc->iMinFrameQp,
+      pWelsSvcRc->iMaxFrameQp
+    );
+    uiChromaQp = g_kuiChromaQpTable[CLIP3_QP_0_51 (uiLumaQp + kuiChromaQpIndexOffset)];
+  }
+  pCurMb->uiLumaQp = uiLumaQp;
+  pCurMb->uiChromaQp = uiChromaQp;
+}
+
 void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
   SWelsSvcRc* pWelsSvcRc        = &pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId];
   SRCSlicing* pSOverRc          = &pSlice->sSlicingOverRc;
@@ -710,7 +734,8 @@ void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
   pCurMb->uiLumaQp      = iLumaQp;
 
   // TODO(ayamir): test effect
-  RcAdjustMbQpByRange(pEncCtx, pCurMb);
+  // RcAdjustMbQpByRange(pEncCtx, pCurMb);
+  RcAdjustMbQpByPriorityArray(pEncCtx, pCurMb);
 }
 
 SWelsSvcRc* RcJudgeBaseUsability (sWelsEncCtx* pEncCtx) {

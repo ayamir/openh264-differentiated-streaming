@@ -545,6 +545,7 @@ typedef struct TagObjectRange {
   int   iQpOffset;
 } SObjectRange;
 
+
 /**
 * @brief SVC Encoding Parameters extention
 */
@@ -605,6 +606,9 @@ typedef struct TagEncParamExt {
   /* Object Range from Unity and Qp offset setting */
   SObjectRange* pObjectRange;          ///<  Object Range Array
   int           iObjectRangeNum;       ///<  Object Range number
+
+  /* PriorityArray from Unity */
+  int* pPriorityArray;            ///<  Priority Array
 } SEncParamExt;
 
 /**
