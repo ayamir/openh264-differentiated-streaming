@@ -608,7 +608,7 @@ typedef struct TagEncParamExt {
   int           iObjectRangeNum;       ///<  Object Range number
 
   /* PriorityArray from Unity */
-  int* pPriorityArray;            ///<  Priority Array
+  unsigned int* pPriorityArray;            ///<  Priority Array
 } SEncParamExt;
 
 /**

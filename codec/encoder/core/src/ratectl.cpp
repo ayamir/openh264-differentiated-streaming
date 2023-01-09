@@ -690,7 +690,7 @@ void RcAdjustMbQpByRange (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
 }
 
 void RcAdjustMbQpByPriorityArray (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
-  int *pPriorityArray                  = pEncCtx->pSvcParam->pPriorityArray;
+  uint32_t *pPriorityArray             = pEncCtx->pSvcParam->pPriorityArray;
   uint8_t uiLumaQp                     = pCurMb->uiLumaQp;
   uint8_t uiChromaQp                   = pCurMb->uiChromaQp;
   SDqLayer* pCurLayer                  = pEncCtx->pCurDqLayer;
@@ -703,7 +703,7 @@ void RcAdjustMbQpByPriorityArray (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
   // pCurSliceCtx->iMbWidth, pCurSliceCtx->iMbHeight, pCurSliceCtx->iSliceNumInFrame, pCurSliceCtx->iMbNumInFrame);
   if (pPriorityArray != NULL) {
     uiLumaQp = (uint8_t)WELS_CLIP3 (
-      uiLumaQp + pPriorityArray[iMbXY],
+      uiLumaQp - pPriorityArray[iMbXY] * 2,
       pWelsSvcRc->iMinFrameQp,
       pWelsSvcRc->iMaxFrameQp
     );
@@ -717,13 +717,10 @@ void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
   SWelsSvcRc* pWelsSvcRc        = &pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId];
   SRCSlicing* pSOverRc          = &pSlice->sSlicingOverRc;
 
-  // NOTE: set mb qp as slice qp
   int32_t iLumaQp               = pSOverRc->iCalculatedQpSlice;
   SDqLayer* pCurLayer           = pEncCtx->pCurDqLayer;
   const uint8_t kuiChromaQpIndexOffset = pCurLayer->sLayerInfo.pPpsP->uiChromaQpIndexOffset;
-  // NOTE: set mb qp with AdaptiveQuantOffset
   if (pEncCtx->pSvcParam->bEnableAdaptiveQuant) {
-    // NOTE: ensure iLumaQp in range [iMinQp, iMaxQp]
     iLumaQp   = (int8_t)WELS_CLIP3 (
       iLumaQp + pEncCtx->pVaa->sAdaptiveQuantParam.pMotionTextureIndexToDeltaQp[pCurMb->iMbXY],
       pWelsSvcRc->iMinFrameQp,
@@ -733,9 +730,11 @@ void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
   pCurMb->uiChromaQp    = g_kuiChromaQpTable[CLIP3_QP_0_51 (iLumaQp + kuiChromaQpIndexOffset)];
   pCurMb->uiLumaQp      = iLumaQp;
 
-  // TODO(ayamir): test effect
-  // RcAdjustMbQpByRange(pEncCtx, pCurMb);
-  RcAdjustMbQpByPriorityArray(pEncCtx, pCurMb);
+  // NOTE: don't set I_Slice's mb QP
+  if (pEncCtx->eSliceType != I_SLICE) {
+    // RcAdjustMbQpByRange(pEncCtx, pCurMb);
+    RcAdjustMbQpByPriorityArray(pEncCtx, pCurMb);
+  }
 }
 
 SWelsSvcRc* RcJudgeBaseUsability (sWelsEncCtx* pEncCtx) {

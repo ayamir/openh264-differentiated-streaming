@@ -332,7 +332,7 @@ class ISVCEncoder {
   * @param pPriorityArray the array of the priority of the object to be adjust QP
   * @return  0 - success; otherwise -failed;
   */
-  virtual int EXTAPI EncodeFrame (const SSourcePicture* kpSrcPic, SFrameBSInfo* pBsInfo, int* pObjectRange) = 0;
+  virtual int EXTAPI EncodeFrame (const SSourcePicture* kpSrcPic, SFrameBSInfo* pBsInfo, unsigned int* pPriorityArray) = 0;
 
   /**
   * @brief  Encode the parameters from output bit stream

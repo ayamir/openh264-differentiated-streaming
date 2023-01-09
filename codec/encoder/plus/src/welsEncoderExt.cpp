@@ -44,6 +44,7 @@
 
 #include <time.h>
 #include <measure_time.h>
+#include <chrono>
 #if defined(_WIN32) /*&& defined(_DEBUG)*/
 
 #include <windows.h>
@@ -596,7 +597,7 @@ int CWelsH264SVCEncoder ::EncodeFrameInternal (const SSourcePicture*  pSrcPic, S
 /*
  *  SVC core encoding
  */
-int CWelsH264SVCEncoder::EncodeFrame (const SSourcePicture* kpSrcPic, SFrameBSInfo* pBsInfo, int* pPriorityArray) {
+int CWelsH264SVCEncoder::EncodeFrame (const SSourcePicture* kpSrcPic, SFrameBSInfo* pBsInfo, unsigned int* pPriorityArray) {
   if (! (kpSrcPic && m_bInitialFlag && pBsInfo)) {
     WelsLog (&m_pWelsTrace->m_sLogCtx, WELS_LOG_ERROR, "CWelsH264SVCEncoder::EncodeFrame(), cmInitParaError.");
     return cmInitParaError;
@@ -607,7 +608,11 @@ int CWelsH264SVCEncoder::EncodeFrame (const SSourcePicture* kpSrcPic, SFrameBSIn
     return cmInitParaError;
   }
 
+  // auto start = std::chrono::system_clock::now();
   const int32_t kiEncoderReturn = EncodeFrameInternal (kpSrcPic, pBsInfo, pPriorityArray);
+  // auto end = std::chrono::system_clock::now();
+  // std::chrono::duration<double> cost = end - start;
+  // WelsLogFile (&m_pWelsTrace->m_sLogCtx, WELS_LOG_WARNING, "EncodeFrameInternal took %lf ms", cost.count());
 
   if (kiEncoderReturn != cmResultSuccess) {
     WelsLog (&m_pWelsTrace->m_sLogCtx, WELS_LOG_ERROR, "CWelsH264SVCEncoder::EncodeFrame(), kiEncoderReturn %d",
@@ -625,7 +630,7 @@ int CWelsH264SVCEncoder::EncodeFrame (const SSourcePicture* kpSrcPic, SFrameBSIn
 }
 
 
-int CWelsH264SVCEncoder ::EncodeFrameInternal (const SSourcePicture*  pSrcPic, SFrameBSInfo* pBsInfo, int* pPriorityArray) {
+int CWelsH264SVCEncoder ::EncodeFrameInternal (const SSourcePicture*  pSrcPic, SFrameBSInfo* pBsInfo, unsigned int* pPriorityArray) {
 
   if ((pSrcPic->iPicWidth < 16) || ((pSrcPic->iPicHeight < 16))) {
     WelsLog (&m_pWelsTrace->m_sLogCtx, WELS_LOG_ERROR, "Don't support width(%d) or height(%d) which is less than 16!",
@@ -796,7 +801,7 @@ void CWelsH264SVCEncoder::TraceParamInfo (SEncParamExt* pParam) {
 void CWelsH264SVCEncoder::LogStatistics (const int64_t kiCurrentFrameTs, int32_t iMaxDid) {
   for (int32_t iDid = 0; iDid <= iMaxDid; iDid++) {
     SEncoderStatistics* pStatistics = & (m_pEncContext->sEncoderStatistics[iDid]);
-    WelsLogFile (&m_pWelsTrace->m_sLogCtx, WELS_LOG_INFO,
+    WelsLog (&m_pWelsTrace->m_sLogCtx, WELS_LOG_INFO,
              "EncoderStatistics: SpatialId = %d,%dx%d, SpeedInMs: %f, fAverageFrameRate=%f, "
              "LastFrameRate=%f, LatestBitRate=%d, LastFrameQP=%d, uiInputFrameCount=%d, uiSkippedFrameCount=%d, "
              "uiResolutionChangeTimes=%d, uIDRReqNum=%d, uIDRSentNum=%d, uLTRSentNum=NA, iTotalEncodedBytes=%lu at Ts = %" PRId64,
