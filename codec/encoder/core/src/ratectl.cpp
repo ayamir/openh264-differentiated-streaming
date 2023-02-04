@@ -647,48 +647,6 @@ void RcInitGomParameters (sWelsEncCtx* pEncCtx) {
   memset (pWelsSvcRc->pGomCost, 0, pWelsSvcRc->iGomSize * sizeof (int32_t));
 }
 
-/*!
- * \brief   adjust mb qp by object range
- * \param   pEncCtx    encoder context
- * \param   pCurMb     current macroblock
- * \return  void
-*/
-void RcAdjustMbQpByRange (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
-  SObjectRange* pObjectRange    = pEncCtx->pSvcParam->pObjectRange;
-  int iObjectRangeNum           = pEncCtx->pSvcParam->iObjectRangeNum;
-
-  uint8_t uiLumaQp              = pCurMb->uiLumaQp;
-  uint8_t uiChromaQp            = pCurMb->uiChromaQp;
-  int16_t iMbX                  = pCurMb->iMbX;
-  int16_t iMbY                  = pCurMb->iMbY;
-  SDqLayer* pCurLayer           = pEncCtx->pCurDqLayer;
-  SWelsSvcRc* pWelsSvcRc        = &(pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId]);
-  const uint8_t kuiChromaQpIndexOffset = pCurLayer->sLayerInfo.pPpsP->uiChromaQpIndexOffset;
-  // SSliceCtx* pCurSliceCtx       = &(pEncCtx->pCurDqLayer->sSliceEncCtx);
-  // WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING,
-  // "RcAdjustMbQpByRange: iMbWidth=%d, iMbHeight=%d, iSliceNumInFrame=%d, iMbNumInFrame=%d",
-  // pCurSliceCtx->iMbWidth, pCurSliceCtx->iMbHeight, pCurSliceCtx->iSliceNumInFrame, pCurSliceCtx->iMbNumInFrame);
-  if (pObjectRange != NULL) {
-    for (int i = 0; i < iObjectRangeNum; i++) {
-      int16_t iXStart   = (int16_t)pObjectRange[i].iXStart;
-      int16_t iXEnd     = (int16_t)pObjectRange[i].iXEnd;
-      int16_t iYStart   = (int16_t)pObjectRange[i].iYStart;
-      int16_t iYEnd     = (int16_t)pObjectRange[i].iYEnd;
-      int     iQpOffset = (int)pObjectRange[i].iQpOffset;
-      if (iMbX > iXStart && iMbX < iXEnd && iMbY > iYStart && iMbY < iYEnd) {
-        uiLumaQp = (uint8_t)WELS_CLIP3 (
-          uiLumaQp + iQpOffset,
-          pWelsSvcRc->iMinFrameQp,
-          pWelsSvcRc->iMaxFrameQp
-        );
-        uiChromaQp = g_kuiChromaQpTable[CLIP3_QP_0_51 (uiLumaQp + kuiChromaQpIndexOffset)];
-      }
-    }
-  }
-  pCurMb->uiLumaQp = uiLumaQp;
-  pCurMb->uiChromaQp = uiChromaQp;
-}
-
 void RcAdjustMbQpByPriorityArray (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
   uint32_t *pPriorityArray             = pEncCtx->pSvcParam->pPriorityArray;
   uint8_t uiLumaQp                     = pCurMb->uiLumaQp;

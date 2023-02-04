@@ -603,10 +603,6 @@ typedef struct TagEncParamExt {
 
   bool    bIsLosslessLink;             ///<  LTR advanced setting
 
-  /* Object Range from Unity and Qp offset setting */
-  SObjectRange* pObjectRange;          ///<  Object Range Array
-  int           iObjectRangeNum;       ///<  Object Range number
-
   /* PriorityArray from Unity */
   unsigned int* pPriorityArray;            ///<  Priority Array
 } SEncParamExt;

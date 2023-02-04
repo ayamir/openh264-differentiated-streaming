@@ -131,9 +131,6 @@ typedef struct TagWelsSvcCodingParam: SEncParamExt {
 
   static void FillDefault (SEncParamExt& param) {
     memset (&param, 0, sizeof (param));
-    // initialize object range
-    param.pObjectRange = NULL;
-    param.iObjectRangeNum = 0;
 
     param.uiIntraPeriod         = 0;                    // intra period (multiple of GOP size as desired)
     param.iNumRefFrame          = AUTO_REF_PIC_COUNT;// number of reference frame used
@@ -292,10 +289,6 @@ typedef struct TagWelsSvcCodingParam: SEncParamExt {
   }
   int32_t ParamTranscode (const SEncParamExt& pCodingParam) {
     float fParamMaxFrameRate = WELS_CLIP3 (pCodingParam.fMaxFrameRate, MIN_FRAME_RATE, MAX_FRAME_RATE);
-
-    // DONE: set ObjectRangePtr and Num
-    pObjectRange = pCodingParam.pObjectRange;
-    iObjectRangeNum = pCodingParam.iObjectRangeNum;
 
     iUsageType = pCodingParam.iUsageType;
     iPicWidth   = pCodingParam.iPicWidth;
