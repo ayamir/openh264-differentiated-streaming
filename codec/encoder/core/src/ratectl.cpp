@@ -713,7 +713,7 @@ void RcAdjustMbQpByPriorityArray (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
   pCurMb->uiChromaQp = uiChromaQp;
 }
 
-void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
+void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb, bool bEnableDiffEncoding) {
   SWelsSvcRc* pWelsSvcRc        = &pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId];
   SRCSlicing* pSOverRc          = &pSlice->sSlicingOverRc;
 
@@ -731,8 +731,7 @@ void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
   pCurMb->uiLumaQp      = iLumaQp;
 
   // NOTE: don't set I_Slice's mb QP
-  if (pEncCtx->eSliceType != I_SLICE) {
-    // RcAdjustMbQpByRange(pEncCtx, pCurMb);
+  if (pEncCtx->eSliceType != I_SLICE && bEnableDiffEncoding) {
     RcAdjustMbQpByPriorityArray(pEncCtx, pCurMb);
   }
 }
@@ -795,33 +794,68 @@ void RcGomTargetBits (sWelsEncCtx* pEncCtx, SSlice* pSlice) {
   pSOverRc->iGomTargetBits = iAllocateBits;
 }
 
+bool RcCalculateGomQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
+  SWelsSvcRc* pWelsSvcRc            = &pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId];
+  SRCSlicing* pSOverRc              = &pSlice->sSlicingOverRc;
+  int64_t iBitsRatio                = 1;
+  int64_t iLeftBits                 = pSOverRc->iTargetBitsSlice - pSOverRc->iFrameBitsSlice;
+  int64_t iTargetLeftBits           = iLeftBits + pSOverRc->iGomBitsSlice - pSOverRc->iGomTargetBits;
 
-void RcCalculateGomQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
-  SWelsSvcRc* pWelsSvcRc    = &pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId];
-  SRCSlicing* pSOverRc      = &pSlice->sSlicingOverRc;
-  int64_t iBitsRatio        = 1;
+  uint32_t *pPriorityArray          = pEncCtx->pSvcParam->pPriorityArray;
+  const int kiPicWidth              = pEncCtx->pSvcParam->iPicWidth;
+  const int kiPicHeight             = pEncCtx->pSvcParam->iPicHeight;
+  const int kiArrayLength           = (kiPicWidth / 16) * (kiPicHeight / 16);
+  const uint32_t kiHighLevel        = 2;
+  const uint32_t kiMediumLevel      = 1;
+  const int32_t kiLowestThreshold   = 8409;   // 2^(-1.5/6)*10000
+  const int32_t kiLowThreshold      = 9439;   // 2^(-0.5/6)*10000
+  const int32_t kiHighThreshold     = 10660;  // 2^(0.5/6)*10000
+  const int32_t kiHighestThreshold  = 11900;  // 2^(1.5/6)*10000
+  bool bLowestEnough                = false;
+  bool bLowEnough                   = false;
+  int iHighMbNum = 0, iMediumMbNum = 0, iLowMbNum = 0;
+  bool bEnableDiffEncoding          = false;
 
-  int64_t iLeftBits         = pSOverRc->iTargetBitsSlice - pSOverRc->iFrameBitsSlice;
-  int64_t iTargetLeftBits   = iLeftBits + pSOverRc->iGomBitsSlice - pSOverRc->iGomTargetBits;
+  for (int i = 0; i < kiArrayLength; i++) {
+    if (pPriorityArray[i] == kiHighLevel)
+      iHighMbNum++;
+    else if (pPriorityArray[i] == kiMediumLevel)
+      iMediumMbNum++;
+  }
+
+  // TODO: Test a vaild value for ratio
+  if (iHighMbNum < kiArrayLength / 16 && iMediumMbNum < kiArrayLength / 16) {
+    bLowestEnough = true;
+    bLowEnough = true;
+    bEnableDiffEncoding = true;
+  } else if (iHighMbNum < kiArrayLength / 8 && iMediumMbNum < kiArrayLength / 8) {
+    bLowEnough = true;
+    bEnableDiffEncoding = true;
+  }
+
   if ((iLeftBits <= 0) || (iTargetLeftBits <= 0)) {
     pSOverRc->iCalculatedQpSlice += 2;
   } else {
 //globe decision
     iBitsRatio = 10000 * iLeftBits / (iTargetLeftBits + 1);
-    if (iBitsRatio < 8409)              //2^(-1.5/6)*10000
+    if (iBitsRatio < kiLowestThreshold && !bLowestEnough)
       pSOverRc->iCalculatedQpSlice += 2;
-    else if (iBitsRatio < 9439)         //2^(-0.5/6)*10000
+    else if (iBitsRatio < kiLowestThreshold && bLowestEnough)
       pSOverRc->iCalculatedQpSlice += 1;
-    else if (iBitsRatio > 10600)        //2^(0.5/6)*10000
+    else if (iBitsRatio < kiLowThreshold && !bLowEnough)
+      pSOverRc->iCalculatedQpSlice += 1;
+    else if (iBitsRatio < kiLowThreshold && bLowEnough)
+      pSOverRc->iCalculatedQpSlice += 0;
+    else if (iBitsRatio > kiHighThreshold)
       pSOverRc->iCalculatedQpSlice -= 1;
-    else if (iBitsRatio > 11900)        //2^(1.5/6)*10000
+    else if (iBitsRatio > kiHighestThreshold)
       pSOverRc->iCalculatedQpSlice -= 2;
   }
   pSOverRc->iCalculatedQpSlice = WELS_CLIP3 (pSOverRc->iCalculatedQpSlice, pWelsSvcRc->iMinFrameQp,
                                  pWelsSvcRc->iMaxFrameQp);
 // WelsLog (& (pEncCtx->sLogCtx), WELS_LOG_DEBUG,"iCalculatedQpSlice =%d,iBitsRatio = %d\n",pSOverRc->iCalculatedQpSlice,iBitsRatio);
   pSOverRc->iGomBitsSlice = 0;
-
+  return bEnableDiffEncoding;
 }
 
 void   RcVBufferCalculationSkip (sWelsEncCtx* pEncCtx) {
@@ -1289,6 +1323,7 @@ void WelsRcMbInitGom (sWelsEncCtx* pEncCtx, SMB* pCurMb, SSlice* pSlice) {
   SRCSlicing* pSOverRc          = &pSlice->sSlicingOverRc;
   SDqLayer* pCurLayer           = pEncCtx->pCurDqLayer;
   const uint8_t kuiChromaQpIndexOffset = pCurLayer->sLayerInfo.pPpsP->uiChromaQpIndexOffset;
+  bool bEnableDiffEncoding      = false;
 
   pSOverRc->iBsPosSlice = pEncCtx->pFuncList->pfGetBsPosition (pSlice);
   if (pWelsSvcRc->bEnableGomQp) {
@@ -1296,13 +1331,13 @@ void WelsRcMbInitGom (sWelsEncCtx* pEncCtx, SMB* pCurMb, SSlice* pSlice) {
     if (0 == (pCurMb->iMbXY % pWelsSvcRc->iNumberMbGom)) {
       if (pCurMb->iMbXY != pSOverRc->iStartMbSlice) {
         pSOverRc->iComplexityIndexSlice++;
-        RcCalculateGomQp (pEncCtx, pSlice, pCurMb);
+        bEnableDiffEncoding = RcCalculateGomQp (pEncCtx, pSlice, pCurMb);
       }
       RcGomTargetBits (pEncCtx, pSlice);
     }
 
     // NOTE: set mb qp as slice qp for P frame
-    RcCalculateMbQp (pEncCtx, pSlice, pCurMb);
+    RcCalculateMbQp (pEncCtx, pSlice, pCurMb, bEnableDiffEncoding);
   } else {
     // NOTE: set mb qp as picture qp for I frame
     pCurMb->uiLumaQp   = pEncCtx->iGlobalQp;
