@@ -690,7 +690,6 @@ void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
 
   // NOTE: don't set I_Slice's mb QP
   if (pEncCtx->eSliceType != I_SLICE) {
-    // RcAdjustMbQpByRange(pEncCtx, pCurMb);
     RcAdjustMbQpByPriorityArray(pEncCtx, pCurMb);
   }
 }
@@ -1258,11 +1257,8 @@ void WelsRcMbInitGom (sWelsEncCtx* pEncCtx, SMB* pCurMb, SSlice* pSlice) {
       }
       RcGomTargetBits (pEncCtx, pSlice);
     }
-
-    // NOTE: set mb qp as slice qp for P frame
     RcCalculateMbQp (pEncCtx, pSlice, pCurMb);
   } else {
-    // NOTE: set mb qp as picture qp for I frame
     pCurMb->uiLumaQp   = pEncCtx->iGlobalQp;
     pCurMb->uiChromaQp = g_kuiChromaQpTable[CLIP3_QP_0_51 (pCurMb->uiLumaQp + kuiChromaQpIndexOffset)];
   }

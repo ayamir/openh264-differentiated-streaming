@@ -604,7 +604,7 @@ typedef struct TagEncParamExt {
   bool    bIsLosslessLink;             ///<  LTR advanced setting
 
   /* PriorityArray from Unity */
-  unsigned int* pPriorityArray;            ///<  Priority Array
+  unsigned int* pPriorityArray;        ///<  Priority Array
 } SEncParamExt;
 
 /**

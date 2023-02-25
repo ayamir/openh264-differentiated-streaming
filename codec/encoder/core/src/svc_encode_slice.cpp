@@ -705,6 +705,7 @@ int32_t WelsPSliceMdEncDynamic (sWelsEncCtx* pEncCtx, SSlice* pSlice, const bool
   return WelsMdInterMbLoopOverDynamicSlice (pEncCtx, pSlice, &sMd, kiSliceFirstMbXY);
 }
 
+// NOTE: Encode PSlice
 int32_t WelsCodePSlice (sWelsEncCtx* pEncCtx, SSlice* pSlice) {
   //pSlice-level init should be outside and before this function
   SDqLayer* pCurLayer = pEncCtx->pCurDqLayer;
@@ -721,9 +722,11 @@ int32_t WelsCodePSlice (sWelsEncCtx* pEncCtx, SSlice* pSlice) {
     //initial pMd pointer
     pEncCtx->pFuncList->pfInterMd = WelsMdInterMb;
   }
+  // NOTE: calculate average weight from unity
   return WelsPSliceMdEnc (pEncCtx, pSlice, kbHighestSpatial);
 }
 
+// NOTE: Encode PSlice over dynamic
 int32_t WelsCodePOverDynamicSlice (sWelsEncCtx* pEncCtx, SSlice* pSlice) {
   //pSlice-level init should be outside and before this function
   SDqLayer* pCurLayer = pEncCtx->pCurDqLayer;
@@ -1625,6 +1628,7 @@ int32_t SliceLayerInfoUpdate (sWelsEncCtx* pCtx,
   return ENC_RETURN_SUCCESS;
 }
 
+// NOTE: Entry for Encoding one slice
 int32_t WelsCodeOneSlice (sWelsEncCtx* pEncCtx, SSlice* pCurSlice, const int32_t kiNalType) {
   SDqLayer* pCurLayer              = pEncCtx->pCurDqLayer;
   SWelsSvcRc* pWelsSvcRc           = &pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId];
@@ -1653,6 +1657,7 @@ int32_t WelsCodeOneSlice (sWelsEncCtx* pEncCtx, SSlice* pCurSlice, const int32_t
 
   pCurSlice->uiLastMbQp = pCurLayer->sLayerInfo.pPpsP->iPicInitQp + pCurSlice->sSliceHeaderExt.sSliceHeader.iSliceQpDelta;
 
+  // NOTE: Invoke slice coding by using function ptr
   int32_t iEncReturn = g_pWelsSliceCoding[pNalHeadExt->bIdrFlag][kiDynamicSliceFlag] (pEncCtx, pCurSlice);
   if (ENC_RETURN_SUCCESS != iEncReturn)
     return iEncReturn;
@@ -1821,7 +1826,7 @@ int32_t WelsMdInterMbLoop (sWelsEncCtx* pEncCtx, SSlice* pSlice, void* pWelsMd, 
     pCurMb = &pMbList[ iCurMbIdx ];
 
 
-    //step(1): set QP for the current MB
+    //NOTE: step(1): set QP for the current MB
     pEncCtx->pFuncList->pfRc.pfWelsRcMbInit (pEncCtx, pCurMb, pSlice);
 
     //step (2). save some vale for future use, initial pWelsMd
@@ -1922,7 +1927,7 @@ int32_t WelsMdInterMbLoopOverDynamicSlice (sWelsEncCtx* pEncCtx, SSlice* pSlice,
     iCurMbIdx = iNextMbIdx;
     pCurMb = &pMbList[ iCurMbIdx ];
 
-    //step(1): set QP for the current MB
+    //NOTE: step(1): set QP for the current MB
     pEncCtx->pFuncList->pfRc.pfWelsRcMbInit (pEncCtx, pCurMb, pSlice);
     // if already reaches the largest number of slices, set QPs to the upper bound
     if (pSlice->bDynamicSlicingSliceSizeCtrlFlag) {
