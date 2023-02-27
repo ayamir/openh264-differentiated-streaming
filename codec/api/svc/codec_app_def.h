@@ -534,18 +534,6 @@ typedef struct TagEncParamBase {
 
 } SEncParamBase, *PEncParamBase;
 
-/*
-* @brief Object Range in the picture
-*/
-typedef struct TagObjectRange {
-  short iXStart;
-  short iXEnd;
-  short iYStart;
-  short iYEnd;
-  int   iQpOffset;
-} SObjectRange;
-
-
 /**
 * @brief SVC Encoding Parameters extention
 */
@@ -604,7 +592,11 @@ typedef struct TagEncParamExt {
   bool    bIsLosslessLink;             ///<  LTR advanced setting
 
   /* PriorityArray from Unity */
-  unsigned int* pPriorityArray;        ///<  Priority Array
+  float* pPriorityArray;        ///<  Priority Array
+  /* Array length */
+  unsigned int  uiPriorityArrayLen;    ///<  Priority Array Length
+  /* Sum weight */
+  float  uiSumWeight;           ///<  Sum weight
 } SEncParamExt;
 
 /**

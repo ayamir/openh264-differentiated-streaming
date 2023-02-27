@@ -45,6 +45,7 @@
 #include "encoder_context.h"
 #include "utils.h"
 #include "svc_enc_golomb.h"
+#include <cmath>
 
 
 namespace WelsEnc {
@@ -538,6 +539,7 @@ void RcInitSliceInformation (sWelsEncCtx* pEncCtx) {
                               pWelsSvcRc->iNumberMbFrame);
   pWelsSvcRc->bGomRC        = (RC_OFF_MODE == pEncCtx->pSvcParam->iRCMode ||
                                RC_BUFFERBASED_MODE == pEncCtx->pSvcParam->iRCMode) ? false : true;
+  // Just One Slice in one frame
   for (int32_t i = 0; i < kiSliceNum; i++) {
     SRCSlicing* pSOverRc        = &ppSliceInLayer[i]->sSlicingOverRc;
     pSOverRc->iTotalQpSlice     = 0;
@@ -647,24 +649,29 @@ void RcInitGomParameters (sWelsEncCtx* pEncCtx) {
   memset (pWelsSvcRc->pGomCost, 0, pWelsSvcRc->iGomSize * sizeof (int32_t));
 }
 
-void RcAdjustMbQpByPriorityArray (sWelsEncCtx* pEncCtx, SMB* pCurMb) {
-  uint32_t *pPriorityArray             = pEncCtx->pSvcParam->pPriorityArray;
+void RcAdjustMbQpByPriorityArray (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
   uint8_t uiLumaQp                     = pCurMb->uiLumaQp;
   uint8_t uiChromaQp                   = pCurMb->uiChromaQp;
   SDqLayer* pCurLayer                  = pEncCtx->pCurDqLayer;
   int32_t iMbXY                        = pCurMb->iMbXY;
   SWelsSvcRc* pWelsSvcRc               = &(pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId]);
   const uint8_t kuiChromaQpIndexOffset = pCurLayer->sLayerInfo.pPpsP->uiChromaQpIndexOffset;
-  // SSliceCtx* pCurSliceCtx       = &(pEncCtx->pCurDqLayer->sSliceEncCtx);
-  // WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING,
-  // "RcAdjustMbQpByRange: iMbWidth=%d, iMbHeight=%d, iSliceNumInFrame=%d, iMbNumInFrame=%d",
-  // pCurSliceCtx->iMbWidth, pCurSliceCtx->iMbHeight, pCurSliceCtx->iSliceNumInFrame, pCurSliceCtx->iMbNumInFrame);
-  if (pPriorityArray != NULL) {
+
+  float *pPriorityArray                = pEncCtx->pSvcParam->pPriorityArray;
+  float uiSumWeight                    = pEncCtx->pSvcParam->uiSumWeight;
+  uint32_t uiPriorityArrayLen          = pEncCtx->pSvcParam->uiPriorityArrayLen;
+
+  if (pPriorityArray != nullptr && uiPriorityArrayLen > 0 && uiSumWeight > 0) {
+    float uiAverageWeight              = uiSumWeight / uiPriorityArrayLen;
+    float uiRatioWeight                = pPriorityArray[iMbXY] / uiAverageWeight;
     uiLumaQp = (uint8_t)WELS_CLIP3 (
-      uiLumaQp - pPriorityArray[iMbXY] * 2,
+      round(uiLumaQp / uiRatioWeight),
       pWelsSvcRc->iMinFrameQp,
       pWelsSvcRc->iMaxFrameQp
     );
+    // WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING,
+    //         "RcAdjustMbQpByPriorityArray: iMbXY=%d, uiPriorityArrayLen=%d, uiSumWeight=%d, uiAverageWeight=%d, uiRatioWeight=%d, uiLumaQp=%d",
+    //         iMbXY, uiPriorityArrayLen, uiSumWeight, uiAverageWeight, uiRatioWeight, uiLumaQp);
     uiChromaQp = g_kuiChromaQpTable[CLIP3_QP_0_51 (uiLumaQp + kuiChromaQpIndexOffset)];
   }
   pCurMb->uiLumaQp = uiLumaQp;
@@ -690,7 +697,7 @@ void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
 
   // NOTE: don't set I_Slice's mb QP
   if (pEncCtx->eSliceType != I_SLICE) {
-    RcAdjustMbQpByPriorityArray(pEncCtx, pCurMb);
+    RcAdjustMbQpByPriorityArray(pEncCtx, pSlice, pCurMb);
   }
 }
 

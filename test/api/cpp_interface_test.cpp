@@ -44,7 +44,7 @@ struct SVCEncoderImpl : public ISVCEncoder {
     return 5;
   }
   virtual int EXTAPI EncodeFrame (const SSourcePicture* kpSrcPic,
-                                  SFrameBSInfo* pBsInfo, SObjectRange* pObjectrRange) {
+                                  SFrameBSInfo* pBsInfo, uin32_t* pPriorityArray) {
     EXPECT_TRUE (gThis == this);
     return 5;
   }

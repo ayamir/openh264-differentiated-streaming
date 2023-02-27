@@ -46,6 +46,7 @@
 #include "svc_set_mb_syn.h"
 #include "decode_mb_aux.h"
 #include "svc_mode_decision.h"
+#include <thread>
 
 namespace WelsEnc {
 //#define ENC_TRACE
@@ -722,7 +723,7 @@ int32_t WelsCodePSlice (sWelsEncCtx* pEncCtx, SSlice* pSlice) {
     //initial pMd pointer
     pEncCtx->pFuncList->pfInterMd = WelsMdInterMb;
   }
-  // NOTE: calculate average weight from unity
+
   return WelsPSliceMdEnc (pEncCtx, pSlice, kbHighestSpatial);
 }
 
@@ -743,6 +744,7 @@ int32_t WelsCodePOverDynamicSlice (sWelsEncCtx* pEncCtx, SSlice* pSlice) {
     //initial pMd pointer
     pEncCtx->pFuncList->pfInterMd = WelsMdInterMb;
   }
+
   return WelsPSliceMdEncDynamic (pEncCtx, pSlice, kbHighestSpatial);
 }
 

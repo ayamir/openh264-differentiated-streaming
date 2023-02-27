@@ -55,6 +55,12 @@
 #include <sys/time.h>
 #endif
 
+#include <algorithm>
+#include <functional>
+#include <typeinfo>
+#include <thread>
+#include <vector>
+
 namespace WelsEnc {
 
 /*
@@ -481,7 +487,7 @@ int CWelsH264SVCEncoder ::EncodeFrameInternal (const SSourcePicture*  pSrcPic, S
 /*
  *  SVC core encoding
  */
-int CWelsH264SVCEncoder::EncodeFrame (const SSourcePicture* kpSrcPic, SFrameBSInfo* pBsInfo, unsigned int* pPriorityArray) {
+int CWelsH264SVCEncoder::EncodeFrame (const SSourcePicture* kpSrcPic, SFrameBSInfo* pBsInfo, float* pPriorityArray) {
   if (! (kpSrcPic && m_bInitialFlag && pBsInfo)) {
     WelsLog (&m_pWelsTrace->m_sLogCtx, WELS_LOG_ERROR, "CWelsH264SVCEncoder::EncodeFrame(), cmInitParaError.");
     return cmInitParaError;
@@ -513,8 +519,13 @@ int CWelsH264SVCEncoder::EncodeFrame (const SSourcePicture* kpSrcPic, SFrameBSIn
   return kiEncoderReturn;
 }
 
+static void SummarizeWeight(float* target, float* pBaseIndex, const int num) {
+  for (int i = 0; i < num; i++) {
+    *target += pBaseIndex[i];
+  }
+}
 
-int CWelsH264SVCEncoder ::EncodeFrameInternal (const SSourcePicture*  pSrcPic, SFrameBSInfo* pBsInfo, unsigned int* pPriorityArray) {
+int CWelsH264SVCEncoder ::EncodeFrameInternal (const SSourcePicture*  pSrcPic, SFrameBSInfo* pBsInfo, float* pPriorityArray) {
 
   if ((pSrcPic->iPicWidth < 16) || ((pSrcPic->iPicHeight < 16))) {
     WelsLog (&m_pWelsTrace->m_sLogCtx, WELS_LOG_ERROR, "Don't support width(%d) or height(%d) which is less than 16!",
@@ -522,11 +533,36 @@ int CWelsH264SVCEncoder ::EncodeFrameInternal (const SSourcePicture*  pSrcPic, S
     return cmUnsupportedData;
   }
 
-  // NOTE: set object range for pSvcParam here...
+  // NOTE: set parameters about priority array
+  unsigned int uiPriorityArrayLen = (pSrcPic->iPicHeight / 16) * (pSrcPic->iPicWidth / 16);
   m_pEncContext->pSvcParam->pPriorityArray = pPriorityArray;
+  m_pEncContext->pSvcParam->uiSumWeight = 0;
 
-  // WelsLog(&m_pWelsTrace->m_sLogCtx, WELS_LOG_WARNING, "CWelsH264SVCEncoder::EncodeFrameInternal(), pObjectRange->iXStart=%d, pObjectRange->iXEnd=%d, pObjectRange->iYStart=%d, pObjectRange->iYEnd=%d, pObjectRange->iQpOffset=%d",
-  //         pObjectRange->iXStart, pObjectRange->iXEnd, pObjectRange->iYStart, pObjectRange->iYEnd, pObjectRange->iQpOffset);
+  // decide thread number
+  const int defaultCores = 8;
+  int threadNum = 1;
+  if (uiPriorityArrayLen % 2 == 0) {
+    threadNum = defaultCores;
+    while (uiPriorityArrayLen % threadNum != 0) {
+      threadNum--;
+    }
+  }
+  // process uiSumWeight using multi-thread
+  std::vector<std::thread> threads;
+  std::vector<float> partialSumWeights;
+  for (int i = 0; i < threadNum; i++) {
+    partialSumWeights.push_back(0);
+  }
+  for (int i = 0; i < threadNum; i++) {
+    threads.push_back(std::thread(SummarizeWeight, &partialSumWeights[i], &pPriorityArray[i * uiPriorityArrayLen / threadNum], uiPriorityArrayLen / threadNum));
+  }
+  std::for_each(threads.begin(), threads.end(), std::mem_fn(&std::thread::join));
+  for (int i = 0; i < threadNum; i++) {
+    m_pEncContext->pSvcParam->uiSumWeight += partialSumWeights[i];
+  }
+
+  WelsLog(&m_pWelsTrace->m_sLogCtx, WELS_LOG_DEBUG, "CWelsH264SVCEncoder::EncodeFrameInternal(), threadNum=%d, uiPriorityArrayLen=%d, uiSumWeight=%d",
+          threadNum, uiPriorityArrayLen, m_pEncContext->pSvcParam->uiSumWeight);
 
   const int64_t kiBeforeFrameUs = WelsTime();
   const int32_t kiEncoderReturn = WelsEncoderEncodeExt (m_pEncContext, pBsInfo, pSrcPic);

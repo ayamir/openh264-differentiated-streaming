@@ -132,6 +132,9 @@ typedef struct TagWelsSvcCodingParam: SEncParamExt {
   static void FillDefault (SEncParamExt& param) {
     memset (&param, 0, sizeof (param));
 
+    param.pPriorityArray        = nullptr;              // priority array for each mb
+    param.uiSumWeight           = 0;                    // sum of weight for all mbs
+
     param.uiIntraPeriod         = 0;                    // intra period (multiple of GOP size as desired)
     param.iNumRefFrame          = AUTO_REF_PIC_COUNT;// number of reference frame used
 
