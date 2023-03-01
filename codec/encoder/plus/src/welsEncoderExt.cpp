@@ -55,12 +55,6 @@
 #include <sys/time.h>
 #endif
 
-#include <algorithm>
-#include <functional>
-#include <typeinfo>
-#include <thread>
-#include <vector>
-
 namespace WelsEnc {
 
 /*
@@ -502,7 +496,7 @@ int CWelsH264SVCEncoder::EncodeFrame (const SSourcePicture* kpSrcPic, SFrameBSIn
   const int32_t kiEncoderReturn = EncodeFrameInternal (kpSrcPic, pBsInfo, pPriorityArray);
   // auto end = std::chrono::system_clock::now();
   // std::chrono::duration<double> cost = end - start;
-  // WelsLogFile (&m_pWelsTrace->m_sLogCtx, WELS_LOG_WARNING, "EncodeFrameInternal took %lf ms", cost.count());
+  // WelsLog (&m_pWelsTrace->m_sLogCtx, WELS_LOG_WARNING, "EncodeFrameInternal took %lf ms", cost.count());
 
   if (kiEncoderReturn != cmResultSuccess) {
     WelsLog (&m_pWelsTrace->m_sLogCtx, WELS_LOG_ERROR, "CWelsH264SVCEncoder::EncodeFrame(), kiEncoderReturn %d",
@@ -534,35 +528,18 @@ int CWelsH264SVCEncoder ::EncodeFrameInternal (const SSourcePicture*  pSrcPic, S
   }
 
   // NOTE: set parameters about priority array
-  unsigned int uiPriorityArrayLen = (pSrcPic->iPicHeight / 16) * (pSrcPic->iPicWidth / 16);
   m_pEncContext->pSvcParam->pPriorityArray = pPriorityArray;
-  m_pEncContext->pSvcParam->uiSumWeight = 0;
+  m_pEncContext->pSvcParam->fAverageWeight = 0;
 
-  // decide thread number
-  const int defaultCores = 8;
-  int threadNum = 1;
-  if (uiPriorityArrayLen % 2 == 0) {
-    threadNum = defaultCores;
-    while (uiPriorityArrayLen % threadNum != 0) {
-      threadNum--;
-    }
+  unsigned int uiPriorityArrayLen = (pSrcPic->iPicHeight / 16) * (pSrcPic->iPicWidth / 16);
+  float fSumWeight = 0;
+  for (unsigned int i = 0; i < uiPriorityArrayLen; i++) {
+    fSumWeight += pPriorityArray[i];
   }
-  // process uiSumWeight using multi-thread
-  std::vector<std::thread> threads;
-  std::vector<float> partialSumWeights;
-  for (int i = 0; i < threadNum; i++) {
-    partialSumWeights.push_back(0);
-  }
-  for (int i = 0; i < threadNum; i++) {
-    threads.push_back(std::thread(SummarizeWeight, &partialSumWeights[i], &pPriorityArray[i * uiPriorityArrayLen / threadNum], uiPriorityArrayLen / threadNum));
-  }
-  std::for_each(threads.begin(), threads.end(), std::mem_fn(&std::thread::join));
-  for (int i = 0; i < threadNum; i++) {
-    m_pEncContext->pSvcParam->uiSumWeight += partialSumWeights[i];
-  }
+  m_pEncContext->pSvcParam->fAverageWeight = fSumWeight / uiPriorityArrayLen;
 
-  WelsLog(&m_pWelsTrace->m_sLogCtx, WELS_LOG_DEBUG, "CWelsH264SVCEncoder::EncodeFrameInternal(), threadNum=%d, uiPriorityArrayLen=%d, uiSumWeight=%d",
-          threadNum, uiPriorityArrayLen, m_pEncContext->pSvcParam->uiSumWeight);
+  // WelsLog(&m_pWelsTrace->m_sLogCtx, WELS_LOG_WARNING, "CWelsH264SVCEncoder::EncodeFrameInternal(), threadNum=%d, uiPriorityArrayLen=%d, fAverageWeight=%f",
+  //         threadNum, uiPriorityArrayLen, m_pEncContext->pSvcParam->fAverageWeight);
 
   const int64_t kiBeforeFrameUs = WelsTime();
   const int32_t kiEncoderReturn = WelsEncoderEncodeExt (m_pEncContext, pBsInfo, pSrcPic);

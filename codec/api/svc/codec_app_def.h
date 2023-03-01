@@ -592,11 +592,9 @@ typedef struct TagEncParamExt {
   bool    bIsLosslessLink;             ///<  LTR advanced setting
 
   /* PriorityArray from Unity */
-  float* pPriorityArray;        ///<  Priority Array
-  /* Array length */
-  unsigned int  uiPriorityArrayLen;    ///<  Priority Array Length
-  /* Sum weight */
-  float  uiSumWeight;           ///<  Sum weight
+  float* pPriorityArray;               ///<  Priority Array
+  /* PriorityArray average weight */
+  float  fAverageWeight;               ///<  Average weight
 } SEncParamExt;
 
 /**
