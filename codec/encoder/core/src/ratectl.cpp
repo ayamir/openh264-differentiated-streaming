@@ -649,40 +649,14 @@ void RcInitGomParameters (sWelsEncCtx* pEncCtx) {
   memset (pWelsSvcRc->pGomCost, 0, pWelsSvcRc->iGomSize * sizeof (int32_t));
 }
 
-void RcAdjustMbQpByPriorityArray (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
-  uint8_t uiLumaQp                     = pCurMb->uiLumaQp;
-  uint8_t uiChromaQp                   = pCurMb->uiChromaQp;
-  SDqLayer* pCurLayer                  = pEncCtx->pCurDqLayer;
-  int32_t iMbXY                        = pCurMb->iMbXY;
-  SWelsSvcRc* pWelsSvcRc               = &(pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId]);
-  const uint8_t kuiChromaQpIndexOffset = pCurLayer->sLayerInfo.pPpsP->uiChromaQpIndexOffset;
-
-  float fAverageWeight                 = pEncCtx->pSvcParam->fAverageWeight;
-  float *pPriorityArray                = pEncCtx->pSvcParam->pPriorityArray;
-  if (pPriorityArray != nullptr && fAverageWeight > 0) {
-    auto beforeQP = uiLumaQp;
-    float fRatioWeight = pPriorityArray[iMbXY] / fAverageWeight;
-    uint8_t afterQP = (uint8_t)round(uiLumaQp / fRatioWeight);
-    uiLumaQp = (uint8_t)WELS_CLIP3 (
-      afterQP,
-      24,
-      pWelsSvcRc->iMaxFrameQp
-    );
-    // WelsLog(&pEncCtx->sLogCtx, WELS_LOG_WARNING,
-    //         "RcAdjustMbQpByPriorityArray: iMbXY=%d, currentWeight=%f, fAverageWeight=%f, fRatioWeight=%f, iMinFrameQp=%d, beforeQP=%d, uiLumaQp=%d",
-    //         iMbXY, pPriorityArray[iMbXY], fAverageWeight, fRatioWeight, pWelsSvcRc->iMinFrameQp, beforeQP, uiLumaQp);
-    uiChromaQp = g_kuiChromaQpTable[CLIP3_QP_0_51 (uiLumaQp + kuiChromaQpIndexOffset)];
-  }
-  pCurMb->uiLumaQp = uiLumaQp;
-  pCurMb->uiChromaQp = uiChromaQp;
-}
-
 void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
   SWelsSvcRc* pWelsSvcRc        = &pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId];
   SRCSlicing* pSOverRc          = &pSlice->sSlicingOverRc;
-
-  int32_t iLumaQp               = pSOverRc->iCalculatedQpSlice;
   SDqLayer* pCurLayer           = pEncCtx->pCurDqLayer;
+  int32_t iLumaQp               = pSOverRc->iCalculatedQpSlice;
+  int32_t iMbXY                 = pCurMb->iMbXY;
+  float fAverageWeight          = pEncCtx->pSvcParam->fAverageWeight;
+  float *pPriorityArray         = pEncCtx->pSvcParam->pPriorityArray;
   const uint8_t kuiChromaQpIndexOffset = pCurLayer->sLayerInfo.pPpsP->uiChromaQpIndexOffset;
   if (pEncCtx->pSvcParam->bEnableAdaptiveQuant) {
     iLumaQp   = (int8_t)WELS_CLIP3 (
@@ -691,13 +665,18 @@ void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
       pWelsSvcRc->iMaxFrameQp
     );
   }
+  if (pPriorityArray != nullptr && fAverageWeight > 0 && pEncCtx->eSliceType != I_SLICE) {
+    float fRatioWeight = pPriorityArray[iMbXY] / fAverageWeight;
+    if (fRatioWeight < 1) {
+      iLumaQp += 1;
+    } else if (fRatioWeight > 1) {
+      iLumaQp -= 1;
+    } else if (fRatioWeight > 1.2) {
+      iLumaQp -= 2;
+    }
+  }
   pCurMb->uiChromaQp    = g_kuiChromaQpTable[CLIP3_QP_0_51 (iLumaQp + kuiChromaQpIndexOffset)];
   pCurMb->uiLumaQp      = iLumaQp;
-
-  // NOTE: don't set I_Slice's mb QP
-  if (pEncCtx->eSliceType != I_SLICE) {
-    RcAdjustMbQpByPriorityArray(pEncCtx, pSlice, pCurMb);
-  }
 }
 
 SWelsSvcRc* RcJudgeBaseUsability (sWelsEncCtx* pEncCtx) {

@@ -298,7 +298,7 @@ int32_t ParamValidation (SLogContext* pLogCtx, SWelsSvcCodingParam* pCfg) {
   }
 
   //turn off adaptive quant now, algorithms needs to be refactored
-  pCfg->bEnableAdaptiveQuant = false;
+  // pCfg->bEnableAdaptiveQuant = false;
 
   if (pCfg->iSpatialLayerNum > 1) {
     for (i = pCfg->iSpatialLayerNum - 1; i > 0; i--) {
