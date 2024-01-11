@@ -595,6 +595,16 @@ typedef struct TagEncParamExt {
   float* pPriorityArray;               ///<  Priority Array
   /* PriorityArray average weight */
   float  fAverageWeight;               ///<  Average weight
+  /* DeltaQP array */
+  signed char* pRoiDeltaQp;
+  /* Positive coefficient for increase quality (decrease QP) */
+  float fAlpha;
+  /* Positive weight cnt for increase quality (decrease QP) */
+  int iPositiveCnt;
+  /* Negative coefficient for decrease quality (increase QP) */
+  float fBeta;
+  /* Negative weight for decrease quality (increase QP) */
+  int iNegativeCnt;
 } SEncParamExt;
 
 /**

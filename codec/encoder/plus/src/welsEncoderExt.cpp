@@ -536,7 +536,38 @@ int CWelsH264SVCEncoder ::EncodeFrameInternal (const SSourcePicture*  pSrcPic, S
   for (unsigned int i = 0; i < uiPriorityArrayLen; i++) {
     fSumWeight += pPriorityArray[i];
   }
-  m_pEncContext->pSvcParam->fAverageWeight = fSumWeight / uiPriorityArrayLen;
+  float fAvgWeight = fSumWeight / uiPriorityArrayLen;
+  m_pEncContext->pSvcParam->fAverageWeight = fAvgWeight;
+  m_pEncContext->pSvcParam->pRoiDeltaQp = static_cast<signed char *>(malloc(uiPriorityArrayLen * sizeof(signed char)));
+  if (m_pEncContext->pSvcParam->pRoiDeltaQp == nullptr) {
+    return cmMallocMemeError;
+  }
+  float fMaxWeight = 0.0;
+  float fMinWeight = FLT_MAX;
+  int iPositiveCnt = 0, iNegativeCnt = 0;
+  for (unsigned int i = 0; i < uiPriorityArrayLen; i++) {
+    m_pEncContext->pSvcParam->pPriorityArray[i] = fAvgWeight - m_pEncContext->pSvcParam->pPriorityArray[i];
+    float fCurrWeight = m_pEncContext->pSvcParam->pPriorityArray[i];
+    fMaxWeight = fMaxWeight < fCurrWeight ? fCurrWeight : fMaxWeight;
+    fMinWeight = fMinWeight > fCurrWeight ? fCurrWeight : fMinWeight;
+    if (fCurrWeight < 0) {
+      iPositiveCnt++;
+    } else {
+      iNegativeCnt++;
+    }
+  }
+  m_pEncContext->pSvcParam->iPositiveCnt = iPositiveCnt;
+  m_pEncContext->pSvcParam->iNegativeCnt = iNegativeCnt;
+  if (fMinWeight == 0) {
+    m_pEncContext->pSvcParam->fAlpha = -1 * DELTA_QP_BGD_THD;
+  } else {
+    m_pEncContext->pSvcParam->fAlpha = -1 * DELTA_QP_BGD_THD / fMinWeight;
+  }
+  if (fMaxWeight == 0) {
+    m_pEncContext->pSvcParam->fBeta = DELTA_QP_BGD_THD;
+  } else {
+    m_pEncContext->pSvcParam->fBeta = DELTA_QP_BGD_THD / fMaxWeight;
+  }
 
   // WelsLog(&m_pWelsTrace->m_sLogCtx, WELS_LOG_WARNING, "CWelsH264SVCEncoder::EncodeFrameInternal(), threadNum=%d, uiPriorityArrayLen=%d, fAverageWeight=%f",
   //         threadNum, uiPriorityArrayLen, m_pEncContext->pSvcParam->fAverageWeight);
@@ -544,6 +575,9 @@ int CWelsH264SVCEncoder ::EncodeFrameInternal (const SSourcePicture*  pSrcPic, S
   const int64_t kiBeforeFrameUs = WelsTime();
   const int32_t kiEncoderReturn = WelsEncoderEncodeExt (m_pEncContext, pBsInfo, pSrcPic);
   const int64_t kiCurrentFrameMs = (WelsTime() - kiBeforeFrameUs) / 1000;
+  if (m_pEncContext->pSvcParam->pRoiDeltaQp != nullptr) {
+    free(m_pEncContext->pSvcParam->pRoiDeltaQp);
+  }
   if ((kiEncoderReturn == ENC_RETURN_MEMALLOCERR) || (kiEncoderReturn == ENC_RETURN_MEMOVERFLOWFOUND)
       || (kiEncoderReturn == ENC_RETURN_VLCOVERFLOWFOUND)) {
     WelsLog (&m_pWelsTrace->m_sLogCtx, WELS_LOG_DEBUG, "CWelsH264SVCEncoder::EncodeFrame() not succeed, err=%d",

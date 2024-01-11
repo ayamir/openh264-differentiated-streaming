@@ -3413,6 +3413,7 @@ EVideoFrameType PrepareEncodeFrame (sWelsEncCtx* pCtx, SLayerBSInfo*& pLayerBsIn
 
   bool bSkipFrameFlag =  WelsRcCheckFrameStatus (pCtx, uiTimeStamp, iSpatialNum, iCurDid);
   EVideoFrameType eFrameType = DecideFrameType (pCtx, iSpatialNum, iCurDid, bSkipFrameFlag);
+  WelsLog (& (pCtx->sLogCtx), WELS_LOG_DEBUG, "PrepareEncodeFrame eFrameType = %d", eFrameType);
   if (eFrameType == videoFrameTypeSkip) {
     if (pSvcParam->bSimulcastAVC) {
       if (pCtx->pFuncList->pfRc.pfWelsUpdateBufferWhenSkip)

@@ -426,6 +426,7 @@ void RcCalculateIdrQp (sWelsEncCtx* pEncCtx) {
   iMaxQp = WELS_CLIP3 (iMaxQp, pWelsSvcRc->iMinQp, pWelsSvcRc->iMaxQp);
   if (0 == pWelsSvcRc->iIdrNum) { //the first IDR frame
     pWelsSvcRc->iInitialQp = dInitialQPArray[iBppIndex][i];
+    WelsLog (& (pEncCtx->sLogCtx), WELS_LOG_DEBUG, "RcCalculateIdrQp iInitialQp = %d", pWelsSvcRc->iInitialQp);
   } else {
 
     //obtain the idr qp using previous idr complexity
@@ -506,20 +507,12 @@ void RcCalculatePictureQp (sWelsEncCtx* pEncCtx) {
   iLumaQp = WELS_CLIP3 (iLumaQp, pWelsSvcRc->iMinFrameQp, pWelsSvcRc->iMaxFrameQp);
 
   if (pEncCtx->pSvcParam->bEnableAdaptiveQuant) {
-    // NOTE:
-    // if (y == 0)
-    //   return (x / (y + 1));
-    // else
-    //   return ((y / 2 + x) / y);
-    // NOTE: iLumaQp = (50 + iLumaQp * 100 - iAverMotionTextureIndexToDeltaQp) / 100;
     iLumaQp =  WELS_DIV_ROUND (iLumaQp * INT_MULTIPLY - pEncCtx->pVaa->sAdaptiveQuantParam.iAverMotionTextureIndexToDeltaQp,
                                INT_MULTIPLY);
-    // NOTE: ensure the QP is in the range of [iMinQp, iMaxQp]
     iLumaQp = WELS_CLIP3 (iLumaQp, pWelsSvcRc->iMinFrameQp, pWelsSvcRc->iMaxFrameQp);
   }
   pWelsSvcRc->iQStep = RcConvertQp2QStep (iLumaQp);
   pWelsSvcRc->iLastCalculatedQScale = iLumaQp;
-  // NOTE: set QP for full picture
   pEncCtx->iGlobalQp = iLumaQp;
 }
 
@@ -571,6 +564,9 @@ void RcDecideTargetBits (sWelsEncCtx* pEncCtx) {
       pWelsSvcRc->iCurrentBitsLevel = BITS_EXCEEDED;
     }
     pWelsSvcRc->iTargetBits = WELS_CLIP3 (pWelsSvcRc->iTargetBits, pTOverRc->iMinBitsTl, pTOverRc->iMaxBitsTl);
+    WelsLog (& (pEncCtx->sLogCtx), WELS_LOG_DEBUG,
+              "pWelsSvcRc->iTargetBits = %d,pWelsSvcRc->iRemainingBits = %d, pTOverRc->iTlayerWeight = %d, pWelsSvcRc->iRemainingWeights = %d",
+              pWelsSvcRc->iTargetBits, pWelsSvcRc->iRemainingBits, pTOverRc->iTlayerWeight, pWelsSvcRc->iRemainingWeights);
   }
   pWelsSvcRc->iRemainingWeights -= pTOverRc->iTlayerWeight;
 
@@ -655,8 +651,7 @@ void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
   SDqLayer* pCurLayer           = pEncCtx->pCurDqLayer;
   int32_t iLumaQp               = pSOverRc->iCalculatedQpSlice;
   int32_t iMbXY                 = pCurMb->iMbXY;
-  float fAverageWeight          = pEncCtx->pSvcParam->fAverageWeight;
-  float *pPriorityArray         = pEncCtx->pSvcParam->pPriorityArray;
+  signed char *pRoiDeltaQp      = pEncCtx->pSvcParam->pRoiDeltaQp;
   const uint8_t kuiChromaQpIndexOffset = pCurLayer->sLayerInfo.pPpsP->uiChromaQpIndexOffset;
   if (pEncCtx->pSvcParam->bEnableAdaptiveQuant) {
     iLumaQp   = (int8_t)WELS_CLIP3 (
@@ -665,15 +660,12 @@ void RcCalculateMbQp (sWelsEncCtx* pEncCtx, SSlice* pSlice, SMB* pCurMb) {
       pWelsSvcRc->iMaxFrameQp
     );
   }
-  if (pPriorityArray != nullptr && fAverageWeight > 0 && pEncCtx->eSliceType != I_SLICE) {
-    float fRatioWeight = pPriorityArray[iMbXY] / fAverageWeight;
-    if (fRatioWeight < 1) {
-      iLumaQp += 1;
-    } else if (fRatioWeight > 1) {
-      iLumaQp -= 1;
-    } else if (fRatioWeight > 1.2) {
-      iLumaQp -= 2;
-    }
+  if (pRoiDeltaQp != nullptr && pEncCtx->eSliceType != I_SLICE) {
+    iLumaQp = (int8_t)WELS_CLIP3 (
+      iLumaQp + pRoiDeltaQp[iMbXY],
+      pWelsSvcRc->iMinFrameQp,
+      pWelsSvcRc->iMaxFrameQp
+    );
   }
   pCurMb->uiChromaQp    = g_kuiChromaQpTable[CLIP3_QP_0_51 (iLumaQp + kuiChromaQpIndexOffset)];
   pCurMb->uiLumaQp      = iLumaQp;
@@ -1164,6 +1156,69 @@ int32_t RcCalculateCascadingQp (struct TagWelsEncCtx* pEncCtx, int32_t iQp) {
   return iTemporalQp;
 }
 
+void RcCalculateRoiDeltaQp(sWelsEncCtx* pEncCtx) {
+  float* pPriorityArray = pEncCtx->pSvcParam->pPriorityArray;
+  signed char* pRoiDeltaQp = pEncCtx->pSvcParam->pRoiDeltaQp;
+  float fAlpha = pEncCtx->pSvcParam->fAlpha;
+  float fBeta = pEncCtx->pSvcParam->fBeta;
+  int iPositiveCnt = pEncCtx->pSvcParam->iPositiveCnt;
+  int iNegativeCnt = pEncCtx->pSvcParam->iNegativeCnt;
+  int iMbNumber = iPositiveCnt + iNegativeCnt;
+  float* pPositiveWeights = static_cast<float*>(malloc(iPositiveCnt * sizeof(float)));
+  float* pNegativeWeights = static_cast<float*>(malloc(iNegativeCnt * sizeof(float)));
+  if (pPositiveWeights == nullptr || pNegativeWeights == nullptr) {
+    return;
+  }
+  int iPositiveIndex = 0;
+  int iNegativeIndex = 0;
+  for (int i = 0; i < iMbNumber && iPositiveIndex < iPositiveCnt && iNegativeIndex < iNegativeCnt; i++) {
+    float fCurrWeight = pPriorityArray[i];
+    if (fCurrWeight < 0) {
+      pPositiveWeights[iPositiveIndex++] = fCurrWeight;
+    } else {
+      pNegativeWeights[iNegativeIndex++] = fCurrWeight;
+    }
+  }
+  int iPositiveRoundSum = 0, iNegativeRoundSum = 0;
+  for (int i = 0; i < iPositiveCnt; i++) {
+    iPositiveRoundSum += static_cast<int>(std::round(pPositiveWeights[i] * fAlpha));
+  }
+  for (int i = 0; i < iNegativeCnt; i++) {
+    iNegativeRoundSum += static_cast<int>(std::round(pNegativeWeights[i] * fBeta));
+  }
+  int iIterateCnt = 0;
+  while (((iPositiveRoundSum + iNegativeRoundSum) < -1 * (iMbNumber / 10) ||
+  (iPositiveRoundSum + iNegativeRoundSum) > (iMbNumber / 10)) && iIterateCnt < 300) {
+    if (std::abs(iPositiveRoundSum) > std::abs(iNegativeRoundSum)) {
+      fAlpha *= 0.99f;
+    } else {
+      fBeta *= 0.99f;
+    }
+    iPositiveRoundSum = 0;
+    iNegativeRoundSum = 0;
+    for (unsigned int i = 0; i < iPositiveCnt; i++) {
+      iPositiveRoundSum += static_cast<int>(std::round(pPositiveWeights[i] * fAlpha));
+    }
+    for (unsigned int i = 0; i < iNegativeCnt; i++) {
+      iNegativeRoundSum += static_cast<int>(std::round(pNegativeWeights[i] * fBeta));
+    }
+    iIterateCnt++;
+  }
+  for (unsigned int i = 0; i < iMbNumber; i++) {
+    float fCurrWeight = pPriorityArray[i];
+    if (fCurrWeight < 0) {
+      pRoiDeltaQp[i] = static_cast<signed int>(std::round(fCurrWeight * fAlpha));
+    } else {
+      pRoiDeltaQp[i] = static_cast<signed int>(std::round(fCurrWeight * fBeta));
+    }
+  }
+  WelsLog (& (pEncCtx->sLogCtx), WELS_LOG_DEBUG,
+   "RcCalculateRoiDeltaQp fAlpha = %f, fBeta = %f, iPositiveRoundSum = %d, iNegativeRoundSum = %d, iSum = %d",
+          fAlpha, fBeta, iPositiveRoundSum, iNegativeRoundSum, iPositiveRoundSum + iNegativeRoundSum);
+  free(pPositiveWeights);
+  free(pNegativeWeights);
+}
+
 void  WelsRcPictureInitGom (sWelsEncCtx* pEncCtx, long long uiTimeStamp) {
   SWelsSvcRc* pWelsSvcRc           = &pEncCtx->pWelsSvcRc[pEncCtx->uiDependencyId];
   const int32_t kiSliceNum         = pEncCtx->pCurDqLayer->iMaxSliceNum;
@@ -1198,6 +1253,7 @@ void  WelsRcPictureInitGom (sWelsEncCtx* pEncCtx, long long uiTimeStamp) {
     RcCalculateIdrQp (pEncCtx);
   } else {
     RcCalculatePictureQp (pEncCtx);
+    RcCalculateRoiDeltaQp(pEncCtx);
   }
   RcInitSliceInformation (pEncCtx);
   RcInitGomParameters (pEncCtx);
