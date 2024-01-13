@@ -1161,16 +1161,19 @@ void RcCalculateRoiDeltaQp(sWelsEncCtx* pEncCtx) {
   signed char* pRoiDeltaQp = pEncCtx->pSvcParam->pRoiDeltaQp;
   float fAlpha = pEncCtx->pSvcParam->fAlpha;
   float fBeta = pEncCtx->pSvcParam->fBeta;
-  int iPositiveCnt = pEncCtx->pSvcParam->iPositiveCnt;
-  int iNegativeCnt = pEncCtx->pSvcParam->iNegativeCnt;
-  int iMbNumber = iPositiveCnt + iNegativeCnt;
+  if (fAlpha == DELTA_QP_BGD_THD && fBeta == DELTA_QP_BGD_THD) {
+    return;
+  }
+  int32_t iPositiveCnt = pEncCtx->pSvcParam->iPositiveCnt;
+  int32_t iNegativeCnt = pEncCtx->pSvcParam->iNegativeCnt;
+  int32_t iMbNumber = iPositiveCnt + iNegativeCnt;
   float* pPositiveWeights = static_cast<float*>(malloc(iPositiveCnt * sizeof(float)));
   float* pNegativeWeights = static_cast<float*>(malloc(iNegativeCnt * sizeof(float)));
   if (pPositiveWeights == nullptr || pNegativeWeights == nullptr) {
     return;
   }
-  int iPositiveIndex = 0;
-  int iNegativeIndex = 0;
+  int32_t iPositiveIndex = 0;
+  int32_t iNegativeIndex = 0;
   for (int i = 0; i < iMbNumber && iPositiveIndex < iPositiveCnt && iNegativeIndex < iNegativeCnt; i++) {
     float fCurrWeight = pPriorityArray[i];
     if (fCurrWeight < 0) {
@@ -1179,16 +1182,17 @@ void RcCalculateRoiDeltaQp(sWelsEncCtx* pEncCtx) {
       pNegativeWeights[iNegativeIndex++] = fCurrWeight;
     }
   }
-  int iPositiveRoundSum = 0, iNegativeRoundSum = 0;
-  for (int i = 0; i < iPositiveCnt; i++) {
-    iPositiveRoundSum += static_cast<int>(std::round(pPositiveWeights[i] * fAlpha));
+  int32_t iPositiveRoundSum = 0, iNegativeRoundSum = 0;
+  for (iPositiveIndex = 0; iPositiveIndex < iPositiveCnt; iPositiveIndex++) {
+    iPositiveRoundSum += WELS_ROUND(pPositiveWeights[iPositiveIndex] * fAlpha);
   }
-  for (int i = 0; i < iNegativeCnt; i++) {
-    iNegativeRoundSum += static_cast<int>(std::round(pNegativeWeights[i] * fBeta));
+  for (iNegativeIndex = 0; iNegativeIndex < iNegativeCnt; iNegativeIndex++) {
+    iNegativeRoundSum += WELS_ROUND(pNegativeWeights[iNegativeIndex] * fBeta);
   }
   int iIterateCnt = 0;
-  while (((iPositiveRoundSum + iNegativeRoundSum) < -1 * (iMbNumber / 10) ||
-  (iPositiveRoundSum + iNegativeRoundSum) > (iMbNumber / 10)) && iIterateCnt < 300) {
+  int iTotalSum = iPositiveRoundSum + iNegativeRoundSum;
+  float pfMinCombination[3] = {static_cast<float>(iTotalSum), fAlpha, fBeta};
+  while (iTotalSum != 0 && iIterateCnt < 500) {
     if (std::abs(iPositiveRoundSum) > std::abs(iNegativeRoundSum)) {
       fAlpha *= 0.99f;
     } else {
@@ -1196,25 +1200,37 @@ void RcCalculateRoiDeltaQp(sWelsEncCtx* pEncCtx) {
     }
     iPositiveRoundSum = 0;
     iNegativeRoundSum = 0;
-    for (unsigned int i = 0; i < iPositiveCnt; i++) {
-      iPositiveRoundSum += static_cast<int>(std::round(pPositiveWeights[i] * fAlpha));
+    for (iPositiveIndex = 0; iPositiveIndex < iPositiveCnt; iPositiveIndex++) {
+      iPositiveRoundSum += WELS_ROUND(pPositiveWeights[iPositiveIndex] * fAlpha);
     }
-    for (unsigned int i = 0; i < iNegativeCnt; i++) {
-      iNegativeRoundSum += static_cast<int>(std::round(pNegativeWeights[i] * fBeta));
+    for (iNegativeIndex = 0; iNegativeIndex < iNegativeCnt; iNegativeIndex++) {
+      iNegativeRoundSum += WELS_ROUND(pNegativeWeights[iNegativeIndex] * fBeta);
+    }
+    iTotalSum = iPositiveRoundSum + iNegativeRoundSum;
+    if (static_cast<float>(iTotalSum) <= pfMinCombination[0] && iTotalSum != 0) {
+      pfMinCombination[0] = static_cast<float>(iTotalSum);
+      pfMinCombination[1] = fAlpha;
+      pfMinCombination[2] = fBeta;
     }
     iIterateCnt++;
+    if (fAlpha == 0 && fBeta == 0) {
+      break;
+    }
   }
+  iTotalSum = static_cast<int>(pfMinCombination[0]);
+  fAlpha = pfMinCombination[1];
+  fBeta = pfMinCombination[2];
   for (unsigned int i = 0; i < iMbNumber; i++) {
     float fCurrWeight = pPriorityArray[i];
     if (fCurrWeight < 0) {
-      pRoiDeltaQp[i] = static_cast<signed int>(std::round(fCurrWeight * fAlpha));
+      pRoiDeltaQp[i] = WELS_ROUND(fCurrWeight * fAlpha);
     } else {
-      pRoiDeltaQp[i] = static_cast<signed int>(std::round(fCurrWeight * fBeta));
+      pRoiDeltaQp[i] = WELS_ROUND(fCurrWeight * fBeta);
     }
   }
   WelsLog (& (pEncCtx->sLogCtx), WELS_LOG_DEBUG,
-   "RcCalculateRoiDeltaQp fAlpha = %f, fBeta = %f, iPositiveRoundSum = %d, iNegativeRoundSum = %d, iSum = %d",
-          fAlpha, fBeta, iPositiveRoundSum, iNegativeRoundSum, iPositiveRoundSum + iNegativeRoundSum);
+   "RcCalculateRoiDeltaQp fAlpha = %f, fBeta = %f, iSum = %d, iIterateCnt = %d",
+          fAlpha, fBeta, iTotalSum, iIterateCnt);
   free(pPositiveWeights);
   free(pNegativeWeights);
 }
